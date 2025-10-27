@@ -1,0 +1,169 @@
+@import "tailwindcss";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+@theme {
+  --color-skill: #DDD0C8;
+}
+
+a {
+  font-weight: 500;
+  color: #BFA181;
+  text-decoration: none;
+}
+a:hover {
+  color: #535bf2;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  scroll-padding-top: 80px;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-size: calc(1.375rem + 1.5vw);
+}
+
+h2 {
+  font-size: calc(1.325rem + .9vw);
+}
+
+h3 {
+  font-size: 1.25rem;
+}
+
+.intro {
+  color: #178582;
+  margin-bottom: 1.5rem;
+}
+
+.text-section {
+  color: #BFA181;
+}
+
+.text-company {
+  color: #29e0d5;
+}
+
+.text-role {
+  color: #DDD0C8;
+}
+
+.text-description {
+  color: #178582;
+}
+
+.anchors {
+  list-style-type: none;
+  color: #29e0d5;
+  font-size: 18px;
+}
+
+.anchors li::before {
+  content: "\2022";
+  color: #BFA181;
+  font-size: 14px;
+  padding-right: 5px;
+}
+
+.sub-anchors {
+  margin-left: 1.5rem;
+}
+
+.hash-link {
+  color: #29e0d5;
+}
+
+.sub-hash-link {
+  color: #DDD0C8;
+}
+
+/* GOOGLE EXAMPLE CSS */
+
+/**
+ * @license
+ * Copyright 2019 Google LLC. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/* 
+ * Always set the map height explicitly to define the size of the div element
+ * that contains the map. 
+ */
+#map {
+  height: 100%;
+}
+
+/* 
+ * Optional: Makes the sample page fill the window. 
+ */
+
+input[type=text] {
+  background-color: #fff;
+  border: 0;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  margin: 10px;
+  padding: 0 0.5em;
+  font: 400 18px Roboto, Arial, sans-serif;
+  overflow: hidden;
+  line-height: 40px;
+  margin-right: 0;
+  min-width: 25%;
+}
+
+input[type=button] {
+  background-color: #fff;
+  border: 0;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  margin: 10px;
+  padding: 0 0.5em;
+  font: 400 18px Roboto, Arial, sans-serif;
+  overflow: hidden;
+  height: 40px;
+  cursor: pointer;
+  margin-left: 5px;
+}
+input[type=button]:hover {
+  background: rgb(235, 235, 235);
+}
+input[type=button].button-primary {
+  background-color: #1a73e8;
+  color: white;
+}
+input[type=button].button-primary:hover {
+  background-color: #1765cc;
+}
+input[type=button].button-secondary {
+  background-color: white;
+  color: #1a73e8;
+}
+input[type=button].button-secondary:hover {
+  background-color: #d2e3fc;
+}
+
+#response-container {
+  background-color: #fff;
+  border: 0;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  margin: 10px;
+  padding: 0 0.5em;
+  font: 400 18px Roboto, Arial, sans-serif;
+  overflow: hidden;
+  overflow: auto;
+  max-height: 50%;
+  max-width: 90%;
+  background-color: rgba(255, 255, 255, 0.95);
+  font-size: small;
+}
+
