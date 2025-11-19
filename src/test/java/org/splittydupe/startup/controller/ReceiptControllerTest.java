@@ -1,120 +1,222 @@
 package org.splittydupe.startup.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.ResponseEntity;
+import org.junit.jupiter.api.DisplayName;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.splittydupe.startup.TestConfig;
+import org.splittydupe.startup.model.Receipt;
+import org.splittydupe.startup.service.JwtService;
+import org.splittydupe.startup.service.OcrService;
+import org.splittydupe.startup.service.PdfReportService;
+import org.splittydupe.startup.service.ReceiptService;
+
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import org.splittydupe.startup.Database.ReceiptTableDAL;
-import org.splittydupe.startup.Database.Receipt;
-import org.splittydupe.startup.Database.LineItem;
-import org.splittydupe.startup.ImageParser.OCRService;
-import org.splittydupe.startup.Payment.PaymentService;
-import org.splittydupe.startup.Controller.ReceiptController;
+@WebMvcTest(ReceiptController.class)
+@DisplayName("Receipt Controller Tests")
+class ReceiptControllerTest {
 
+    @Autowired
+    private MockMvc mockMvc;
 
-import java.util.Map;
-import java.util.List;
-import java.util.HashMap;
+    @Autowired
+    private ObjectMapper objectMapper;
 
-public class ReceiptControllerTest {
+    @MockBean
+    private OcrService ocrService;
 
-    @Mock
-    private OCRService ocrService;
+    @MockBean
+    private ReceiptService receiptService;
 
-    @Mock
-    private ReceiptTableDAL receiptTableDAL;
+    @MockBean
+    private PdfReportService pdfReportService;
 
-    @Mock
-    private PaymentService paymentService;
+    @MockBean
+    private JwtService jwtService;
 
-    @InjectMocks
-    private ReceiptController receiptController;
+    private Receipt testReceipt;
 
     @BeforeEach
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
+    void setUp() {
+        testReceipt = TestConfig.createTestReceipt();
     }
 
     @Test
-    public void testUploadAndParse_noFileProvided() {
-        ResponseEntity<?> response = receiptController.uploadAndParse(null);
-        assertEquals(400, response.getStatusCodeValue());
-        Map<String, String> body = (Map<String, String>) response.getBody();
-        assertEquals("No file provided", body.get("error"));
+    @WithMockUser
+    @DisplayName("Should upload and parse receipt successfully")
+    void shouldUploadAndParseReceiptSuccessfully() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "receipt.jpg",
+                "image/jpeg",
+                "test image content".getBytes()
+        );
+        when(ocrService.processReceiptImage(anyString())).thenReturn(testReceipt);
+
+        mockMvc.perform(multipart("/api/ocr/upload")
+                        .file(file)
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.uid").value(testReceipt.getUid()))
+                .andExpect(jsonPath("$.vendor").value("Test Restaurant"))
+                .andExpect(jsonPath("$.total").value(123.50));
+
+        verify(ocrService, times(1)).processReceiptImage(anyString());
     }
 
     @Test
-    public void testUploadAndParse_success() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "receipt.jpg", "image/jpeg", "dummy data".getBytes());
+    @WithMockUser
+    @DisplayName("Should return 400 when no file provided")
+    void shouldReturn400WhenNoFileProvided() throws Exception {
+        MockMultipartFile emptyFile = new MockMultipartFile(
+                "file",
+                "empty.jpg",
+                "image/jpeg",
+                new byte[0]
+        );
 
-        when(ocrService.wrapper(anyString())).thenReturn(new Receipt());
+        mockMvc.perform(multipart("/api/ocr/upload")
+                        .file(emptyFile)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
 
-        ResponseEntity<?> response = receiptController.uploadAndParse(file);
-        assertEquals(200, response.getStatusCodeValue());
-        verify(ocrService).wrapper(anyString());
+        verify(ocrService, never()).processReceiptImage(anyString());
     }
 
     @Test
-    public void testSaveReceipt_success() {
-        Receipt receipt = new Receipt();
-        when(receiptTableDAL.saveReceipt(receipt)).thenReturn(true);
+    @WithMockUser
+    @DisplayName("Should return 500 when OCR processing fails")
+    void shouldReturn500WhenOcrProcessingFails() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "receipt.jpg",
+                "image/jpeg",
+                "test image content".getBytes()
+        );
+        when(ocrService.processReceiptImage(anyString()))
+                .thenThrow(new RuntimeException("OCR failed"));
 
-        ResponseEntity<?> response = receiptController.saveReceipt(receipt);
-        assertEquals(200, response.getStatusCodeValue());
-        Map<String, Boolean> body = (Map<String, Boolean>) response.getBody();
-        assertTrue(body.get("saved"));
+        mockMvc.perform(multipart("/api/ocr/upload")
+                        .file(file)
+                        .with(csrf()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").exists());
+
+        verify(ocrService, times(1)).processReceiptImage(anyString());
     }
 
     @Test
-    public void testSaveReceipt_failure() {
-        Receipt receipt = new Receipt();
-        when(receiptTableDAL.saveReceipt(receipt)).thenThrow(new RuntimeException("DB error"));
+    @WithMockUser
+    @DisplayName("Should save receipt successfully")
+    void shouldSaveReceiptSuccessfully() throws Exception {
+        when(receiptService.saveReceipt(any(Receipt.class), isNull())).thenReturn(true);
 
-        ResponseEntity<?> response = receiptController.saveReceipt(receipt);
-        assertEquals(500, response.getStatusCodeValue());
-        Map<String, String> body = (Map<String, String>) response.getBody();
-        assertTrue(body.get("error").contains("DB error"));
+        mockMvc.perform(post("/api/receipts")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(testReceipt)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saved").value(true));
+
+        verify(receiptService, times(1)).saveReceipt(any(Receipt.class), isNull());
     }
 
     @Test
-    public void testComputeVenmoRequests_nullReceipt() {
-        ResponseEntity<?> response = receiptController.computeVenmoRequests(null);
-        assertEquals(400, response.getStatusCodeValue());
-        Map<String, String> body = (Map<String, String>) response.getBody();
-        assertEquals("Receipt is required", body.get("error"));
+    @WithMockUser
+    @DisplayName("Should save receipt with authenticated user")
+    void shouldSaveReceiptWithAuthenticatedUser() throws Exception {
+        String authHeader = "Bearer validtoken";
+        when(jwtService.extractUsername(anyString())).thenReturn(TestConfig.TEST_USER_EMAIL);
+        when(receiptService.saveReceipt(any(Receipt.class), eq(TestConfig.TEST_USER_EMAIL))).thenReturn(true);
+
+        mockMvc.perform(post("/api/receipts")
+                        .with(csrf())
+                        .header("Authorization", authHeader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(testReceipt)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saved").value(true));
+
+        // Note: extractUsername is called twice - once by JWT filter and once by controller
+        verify(jwtService, times(2)).extractUsername("validtoken");
+        verify(receiptService, times(1)).saveReceipt(any(Receipt.class), eq(TestConfig.TEST_USER_EMAIL));
     }
 
     @Test
-    public void testComputeVenmoRequests_success() {
-        Receipt receipt = new Receipt();
-        receipt.setVendor("TestVendor");
-        LineItem li = new LineItem();
-        li.setPrice(10.0);
-        li.setQuantity(2);
-        li.setAssignees(List.of("user1", "user2"));
-        receipt.setLineItems(List.of(li));
-        receipt.setSubtotal(20.0);
-        receipt.setTax(1.6);
-        receipt.setTip(1.4);
+    @WithMockUser
+    @DisplayName("Should return 400 when receipt is null")
+    void shouldReturn400WhenReceiptIsNull() throws Exception {
+        mockMvc.perform(post("/api/receipts")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("null"))
+                .andExpect(status().isBadRequest());
 
-        Map<String, Object> fakePaymentResult = new HashMap<>();
-        fakePaymentResult.put("status", "success");
+        verify(receiptService, never()).saveReceipt(any(), any());
+    }
 
-        when(paymentService.requestPayment(anyString(), any(), anyString())).thenReturn(fakePaymentResult);
+    @Test
+    @WithMockUser
+    @DisplayName("Should generate PDF report successfully")
+    void shouldGeneratePdfReportSuccessfully() throws Exception {
+        byte[] pdfBytes = "PDF content".getBytes();
+        when(receiptService.saveReceipt(any(Receipt.class), isNull())).thenReturn(true);
+        when(pdfReportService.generateReceiptReport(any(Receipt.class))).thenReturn(pdfBytes);
 
-        ResponseEntity<?> response = receiptController.computeVenmoRequests(receipt);
-        assertEquals(200, response.getStatusCodeValue());
-        List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody();
-        assertNotNull(results);
-        assertFalse(results.isEmpty());
-        Map<String, Object> first = results.get(0);
-        assertEquals("user1", first.get("assignee"));
-        assertEquals("venmo://paycharge?txn=pay&recipients=user1&amount=11.00", first.get("venmoApp"));
+        mockMvc.perform(post("/api/receipts/generate-report")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(testReceipt)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andExpect(header().exists("Content-Disposition"))
+                .andExpect(content().bytes(pdfBytes));
+
+        verify(receiptService, times(1)).saveReceipt(any(Receipt.class), isNull());
+        verify(pdfReportService, times(1)).generateReceiptReport(any(Receipt.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Should return 500 when PDF generation fails")
+    void shouldReturn500WhenPdfGenerationFails() throws Exception {
+        when(receiptService.saveReceipt(any(Receipt.class), isNull())).thenReturn(true);
+        when(pdfReportService.generateReceiptReport(any(Receipt.class)))
+                .thenThrow(new RuntimeException("PDF generation failed"));
+
+        mockMvc.perform(post("/api/receipts/generate-report")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(testReceipt)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").exists());
+
+        verify(pdfReportService, times(1)).generateReceiptReport(any(Receipt.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Should return 400 when receipt is null for PDF generation")
+    void shouldReturn400WhenReceiptIsNullForPdfGeneration() throws Exception {
+        mockMvc.perform(post("/api/receipts/generate-report")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("null"))
+                .andExpect(status().isBadRequest());
+
+        verify(receiptService, never()).saveReceipt(any(), any());
+        verify(pdfReportService, never()).generateReceiptReport(any());
     }
 }

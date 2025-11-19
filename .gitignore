@@ -34,4 +34,32 @@ build/
 
 ### env ###
 src/main/resources/application.properties
+src/main/resources/application-*.properties
 src/main/java/org/splittydupe/startup/images
+*.env
+.env*
+!.env.example
+
+### Claude Code ###
+.claude/
+
+### Build outputs ###
+build/
+**/build/
+
+### Test Coverage ###
+coverage/
+**/coverage/
+
+### TypeScript ###
+*.tsbuildinfo
+**/.tmp/
+
+### Google Cloud ###
+*-key.json
+*-credentials.json
+service-account*.json
+
+### Logs ###
+*.log
+logs/

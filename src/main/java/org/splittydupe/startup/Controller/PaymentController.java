@@ -1,33 +1,87 @@
-package org.splittydupe.startup.Controller;
+package org.splittydupe.startup.controller;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.splittydupe.startup.dto.ErrorResponse;
+import org.splittydupe.startup.model.Receipt;
+import org.splittydupe.startup.service.JwtService;
+import org.splittydupe.startup.service.ReceiptService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+@Slf4j
 @RestController
-@RequestMapping("/api/payment")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
 public class PaymentController {
-    
-    @Value("${payment_test_mode:true}")
-    private boolean testMode;
 
-    @Value("${payment_sandbox_accounts:testuser1,testuser2,testuser3}")
-    private String sandboxAccounts;
+    private final ReceiptService receiptService;
+    private final JwtService jwtService;
 
-    @GetMapping("/config")
-    public Map<String, Object> getConfig() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("testMode", testMode);
-        if (testMode) {
-            config.put("testAccounts", Arrays.asList(sandboxAccounts.split(",")));
+    @PatchMapping("/receipts/{receiptId}/assignees/{assignee}")
+    public ResponseEntity<?> updateAssigneePaymentStatus(
+            @PathVariable String receiptId,
+            @PathVariable String assignee,
+            @RequestBody PaymentStatusRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            if (!"paid".equals(request.getStatus()) && !"unpaid".equals(request.getStatus())) {
+                return ResponseEntity.badRequest().body(
+                        ErrorResponse.builder()
+                                .error("Invalid payment status")
+                                .message("Status must be either 'paid' or 'unpaid'")
+                                .build()
+                );
+            }
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+                String email = jwtService.extractUsername(token);
+
+                Receipt receipt = receiptService.getReceipt(receiptId);
+                if (receipt != null && !email.equals(receipt.getUserId()) && !"anonymous".equals(receipt.getUserId())) {
+                    return ResponseEntity.status(403).body(
+                            ErrorResponse.builder()
+                                    .error("Access denied")
+                                    .message("You do not have permission to update this receipt")
+                                    .build()
+                    );
+                }
+            }
+
+            boolean updated = receiptService.updateAssigneePaymentStatus(
+                    receiptId,
+                    assignee,
+                    request.getStatus()
+            );
+
+            if (updated) {
+                Receipt receipt = receiptService.getReceipt(receiptId);
+                log.info("Assignee payment status updated for receipt: {}, assignee: {}, status: {} (all items)",
+                        receiptId, assignee, request.getStatus());
+                return ResponseEntity.ok(receipt);
+            } else {
+                return ResponseEntity.status(404).body(
+                        ErrorResponse.builder()
+                                .error("Update failed")
+                                .message("Receipt not found")
+                                .build()
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to update assignee payment status", e);
+            return ResponseEntity.status(500).body(
+                    ErrorResponse.builder()
+                            .error("Update failed")
+                            .message(e.getMessage())
+                            .build()
+            );
         }
-        return config;
+    }
+
+    @Data
+    public static class PaymentStatusRequest {
+        private String status; // "paid" or "unpaid"
     }
 }

@@ -1,0 +1,23 @@
+SERVER_PORT=8080
+
+# File Upload Configuration
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=10MB
+
+# GCP Configuration
+GCP_PROJECT_ID=your-project-id
+
+# Firestore Configuration
+TRANSACTION_DATABASE_ID=your-database-id
+TRANSACTION_COLLECTION=your-collection-name
+
+# Document AI Configuration
+PROCESSOR_ID=your-processor-id
+PROCESSOR_LOCATION=us
+
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-here-at-least-256-bits
+JWT_EXPIRATION_MS=86400000
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
