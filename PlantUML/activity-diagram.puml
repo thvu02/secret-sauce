@@ -1,0 +1,141 @@
+@startuml Receipt Processing Activity Diagram
+
+|User|
+start
+:Select receipt image file;
+:Preview image in browser;
+
+|Frontend|
+:Display file preview;
+:Enable "Upload and Parse" button;
+
+|User|
+:Click "Upload and Parse";
+
+|Frontend|
+:Send POST /api/ocr/upload\nwith image file;
+
+|ReceiptController|
+:Receive upload request;
+:Validate file format;
+
+if (Valid image file?) then (yes)
+    |OcrService|
+    :Convert image to bytes;
+    :Send to Google Document AI;
+
+    |Google Document AI|
+    :Process image with OCR;
+    :Extract text and entities;
+    :Identify vendor, date, amounts;
+    :Return structured data;
+
+    |OcrService|
+    :Parse Document AI response;
+    :Extract vendor name;
+    :Extract receipt date;
+    :Extract amounts (subtotal, tax, tip);
+    :Calculate percentages;
+    :Extract line items;
+    :Build Receipt object;
+    :Return Receipt to controller;
+
+    |ReceiptController|
+    :Return Receipt as JSON;
+
+    |Frontend|
+    :Display parsed receipt data;
+    :Show vendor, date, amounts;
+    :Display line items table;
+
+    |User|
+    :Review parsed data;
+
+    if (Need corrections?) then (yes)
+        :Edit vendor, date, or amounts;
+        :Add/remove/edit line items;
+    else (no)
+    endif
+
+    :Assign line items to people;
+    :Select tax/tip distribution;
+
+    if (User authenticated?) then (yes)
+        :Receipt associated with userId;
+    else (no)
+        :Receipt marked as "anonymous";
+        :Set 7-day expiration;
+    endif
+
+    :Click "Save Receipt";
+
+    |Frontend|
+    :Send POST /api/receipts\nwith complete receipt data;
+
+    |ReceiptController|
+    :Receive save request;
+    :Extract user from JWT (if present);
+    :Validate receipt data;
+
+    |ReceiptService|
+    :Generate unique UID;
+    :Set creation timestamp;
+
+    if (Anonymous receipt?) then (yes)
+        :Set expiresAt = createdAt + 7 days;
+        :Set userId = "anonymous";
+    else (no)
+        :Set userId from JWT;
+        :No expiration;
+    endif
+
+    :Calculate payment status;
+    :Initialize assignee payment tracking;
+
+    |ReceiptRepository|
+    :Convert Receipt to Firestore document;
+    :Save to Firestore collection;
+
+    |Firestore|
+    :Store document;
+    :Return success with timestamp;
+
+    |ReceiptRepository|
+    :Return success;
+
+    |ReceiptService|
+    :Return saved receipt;
+
+    |ReceiptController|
+    :Build SaveReceiptResponse;
+    :Return 201 CREATED;
+
+    |Frontend|
+    :Display success message;
+    :Show receipt UID;
+
+    if (User authenticated?) then (yes)
+        :Show "View in Dashboard" link;
+        :Show "Download PDF Report" button;
+    else (no)
+        :Show "Save UID for access";
+    endif
+
+    |User|
+    :Receipt saved successfully;
+    stop
+
+else (no)
+    |ReceiptController|
+    :Return 400 BAD REQUEST;
+    :Send error message;
+
+    |Frontend|
+    :Display error notification;
+
+    |User|
+    :Fix issue and retry;
+    stop
+endif
+
+@enduml

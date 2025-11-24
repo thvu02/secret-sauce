@@ -1,0 +1,218 @@
+@startuml PDF Report Generation Sequence Diagram
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "ReceiptController" as Controller
+participant "JwtService" as JWT
+participant "ReceiptService" as Service
+participant "ReceiptRepository" as Repo
+participant "PdfReportService" as PDF
+participant "Apache PDFBox" as PDFBox
+participant "Firestore" as DB
+
+== PDF Report Generation ==
+
+User -> Frontend: Navigate to Dashboard
+Frontend -> Controller: GET /api/dashboard/receipts\nAuthorization: Bearer <token>
+Controller -> Service: getUserReceipts(email)
+Service -> Repo: findByUserId(email)
+Repo -> DB: Query receipts
+DB --> Repo: List<Receipt>
+Repo --> Service: Receipts
+Service --> Controller: Receipts
+Controller --> Frontend: 200 OK [receipts...]
+Frontend -> User: Display receipt history
+
+User -> Frontend: Click "Download PDF Report"\nfor receipt_123
+
+Frontend -> Controller: GET /api/receipts/receipt_123/report\nAuthorization: Bearer <token>
+activate Controller
+
+Controller -> JWT: extractUsername(token)
+activate JWT
+JWT --> Controller: userEmail
+deactivate JWT
+
+Controller -> Service: getReceipt(receiptId)
+activate Service
+
+Service -> Repo: findById("receipt_123")
+activate Repo
+
+Repo -> DB: Get document by ID
+activate DB
+DB --> Repo: Receipt document
+deactivate DB
+
+Repo --> Service: Receipt
+deactivate Repo
+
+Service --> Controller: Receipt
+deactivate Service
+
+Controller -> Controller: Verify ownership
+
+alt Not authorized
+    Controller --> Frontend: 403 FORBIDDEN\n"Access denied"
+    Frontend -> User: Show error message
+else Authorized
+    Controller -> PDF: generateReceiptReport(receipt)
+    activate PDF
+
+    PDF -> PDFBox: Create new PDDocument
+    activate PDFBox
+    PDFBox --> PDF: PDDocument
+    deactivate PDFBox
+
+    PDF -> PDFBox: Create A4 page
+    activate PDFBox
+    PDFBox --> PDF: PDPage
+    deactivate PDFBox
+
+    PDF -> PDF: Add page to document
+
+    PDF -> PDFBox: Create PDPageContentStream
+    activate PDFBox
+    PDFBox --> PDF: contentStream
+    deactivate PDFBox
+
+    PDF -> PDF: Initialize Y position at top
+
+    == Add Title Section ==
+    PDF -> PDF: addTitle(stream, y, "Receipt Expense Report")
+    PDF -> PDFBox: Set font (Helvetica Bold, 18pt)
+    activate PDFBox
+    PDF -> PDFBox: Write title text
+    PDFBox --> PDF: Success
+    deactivate PDFBox
+    PDF -> PDF: Update Y position
+
+    == Add Receipt Details Section ==
+    PDF -> PDF: addReceiptDetails(stream, y, receipt)
+    PDF -> PDFBox: Set font (Helvetica Bold, 14pt)
+    activate PDFBox
+    PDF -> PDFBox: Write "Receipt Details" heading
+    deactivate PDFBox
+
+    PDF -> PDFBox: Set font (Helvetica, 12pt)
+    activate PDFBox
+    PDF -> PDFBox: Write vendor name
+    PDF -> PDFBox: Write receipt date
+    PDF -> PDFBox: Write currency
+    PDF -> PDFBox: Write subtotal
+    PDF -> PDFBox: Write tax (with percentage)
+    PDF -> PDFBox: Write tip (with percentage)
+    deactivate PDFBox
+
+    PDF -> PDFBox: Set font (Helvetica Bold, 12pt)
+    activate PDFBox
+    PDF -> PDFBox: Write total amount
+    deactivate PDFBox
+
+    PDF -> PDF: Update Y position
+
+    == Calculate Person Expenses ==
+    PDF -> PDF: calculatePersonExpenses(receipt)
+    PDF -> PDF: personExpenses Map built
+
+    == Add Person Breakdown Section ==
+    PDF -> PDFBox: Write "Person-by-Person Breakdown" heading
+    activate PDFBox
+    deactivate PDFBox
+
+    loop For each person in personExpenses
+        PDF -> PDF: Check if page space sufficient
+        alt Need new page
+            PDF -> PDFBox: Close current content stream
+            activate PDFBox
+            deactivate PDFBox
+            PDF -> PDFBox: Create new page
+            activate PDFBox
+            PDFBox --> PDF: PDPage
+            deactivate PDFBox
+            PDF -> PDFBox: Create new content stream
+            activate PDFBox
+            PDFBox --> PDF: contentStream
+            deactivate PDFBox
+            PDF -> PDF: Reset Y position
+        end
+
+        PDF -> PDF: addPersonSection(stream, y, person, expense)
+
+        PDF -> PDFBox: Write person name (Bold)
+        activate PDFBox
+        deactivate PDFBox
+
+        loop For each line item
+            PDF -> PDFBox: Write item details
+            activate PDFBox
+            deactivate PDFBox
+        end
+
+        PDF -> PDFBox: Write "Items Subtotal: $26.00"
+        activate PDFBox
+        deactivate PDFBox
+
+        PDF -> PDF: Calculate person's tax & tip
+        note right
+            If taxTipDistribution == "even":
+                personTax = totalTax / totalAssignees
+                personTip = totalTip / totalAssignees
+            else (proportional):
+                personTax = (itemsSubtotal / receiptSubtotal) * totalTax
+                personTip = (itemsSubtotal / receiptSubtotal) * totalTip
+        end note
+
+        alt Tax/Tip Distribution is "even"
+            PDF -> PDFBox: Write "Even Share Tax: $3.00"
+            activate PDFBox
+            PDF -> PDFBox: Write "Even Share Tip: $5.00"
+            deactivate PDFBox
+        else Tax/Tip Distribution is "proportional"
+            PDF -> PDFBox: Write "Proportional Tax: $3.25"
+            activate PDFBox
+            PDF -> PDFBox: Write "Proportional Tip: $5.20"
+            deactivate PDFBox
+        end
+
+        PDF -> PDF: Calculate person total\npersonTotal = itemsSubtotal + personTax + personTip
+
+        PDF -> PDFBox: Write "Total: $34.45" (Bold)
+        activate PDFBox
+        deactivate PDFBox
+
+        PDF -> PDF: Update Y position
+    end
+
+    PDF -> PDFBox: Close content stream
+    activate PDFBox
+    deactivate PDFBox
+
+    PDF -> PDFBox: Save document to ByteArrayOutputStream
+    activate PDFBox
+    PDFBox --> PDF: PDF byte array
+    deactivate PDFBox
+
+    PDF -> PDFBox: Close document
+    activate PDFBox
+    deactivate PDFBox
+
+    PDF --> Controller: byte[] pdfBytes
+    deactivate PDF
+
+    Controller -> Controller: Set response headers
+    Controller --> Frontend: 200 OK\nContent-Type: application/pdf\n<binary PDF data>
+    deactivate Controller
+
+    Frontend -> Frontend: Create Blob from response
+    Frontend -> Frontend: Create download URL\nURL.createObjectURL(blob)
+    Frontend -> Frontend: Trigger download\n<a href=url download="report.pdf">
+
+    Frontend -> User: Browser downloads PDF file\n"receipt_123_report.pdf"
+
+    User -> User: Open PDF in viewer
+
+    User -> User: View formatted report:
+end
+
+@enduml

@@ -1,0 +1,338 @@
+@startuml SplittyDupe Class Diagram
+
+package "Controller Layer"  {
+    class ReceiptController {
+        - receiptService: ReceiptService
+        - ocrService: OcrService
+        - pdfReportService: PdfReportService
+        + uploadAndParse(file: MultipartFile): ResponseEntity<?>
+        + saveReceipt(receipt: Receipt): ResponseEntity<?>
+        + generateReport(receiptId: String): ResponseEntity<byte[]>
+    }
+
+    class AuthController {
+        - userService: UserService
+        - jwtService: JwtService
+        + signup(request: SignupRequest): ResponseEntity<?>
+        + login(request: LoginRequest): ResponseEntity<?>
+        + verifyEmail(token: String): ResponseEntity<?>
+        + forgotPassword(request: ForgotPasswordRequest): ResponseEntity<?>
+        + resetPassword(request: PasswordResetRequest): ResponseEntity<?>
+        + getCurrentUser(authHeader: String): ResponseEntity<?>
+    }
+
+    class FriendController {
+        - friendService: FriendService
+        + getAllFriends(authentication: Authentication): ResponseEntity<?>
+        + getFriendById(id: String): ResponseEntity<?>
+        + createFriend(friend: Friend): ResponseEntity<?>
+        + updateFriend(id: String, friend: Friend): ResponseEntity<?>
+        + deleteFriend(id: String): ResponseEntity<?>
+    }
+
+    class PaymentController {
+        - receiptService: ReceiptService
+        - jwtService: JwtService
+        + updateAssigneePaymentStatus(receiptId: String, assignee: String, request: PaymentStatusRequest): ResponseEntity<?>
+    }
+
+    class UserDashboardController {
+        - receiptService: ReceiptService
+        - jwtService: JwtService
+        + getUserReceipts(authHeader: String): ResponseEntity<?>
+        + getReceipt(receiptId: String, authHeader: String): ResponseEntity<?>
+        + deleteReceipt(receiptId: String, authHeader: String): ResponseEntity<?>
+    }
+}
+
+package "Service Layer"  {
+    class ReceiptService {
+        - receiptRepository: IReceiptRepository
+        + saveReceipt(receipt: Receipt): Receipt
+        + getReceipt(receiptId: String): Receipt
+        + getUserReceipts(userId: String): List<Receipt>
+        + updateAssigneePaymentStatus(receiptId: String, assignee: String, status: String): boolean
+        + deleteReceipt(receiptId: String): boolean
+    }
+
+    class OcrService {
+        - projectId: String
+        - processorId: String
+        - location: String
+        + processReceiptImage(fileContent: byte[]): Receipt
+        - extractReceiptData(document: Document): Receipt
+        - extractLineItems(document: Document): List<LineItem>
+    }
+
+    class UserService {
+        - userRepository: UserRepository
+        - verificationTokenRepository: VerificationTokenRepository
+        - emailService: EmailService
+        - passwordEncoder: BCryptPasswordEncoder
+        + registerUser(email: String, password: String): User
+        + authenticateUser(email: String, password: String): Optional<User>
+        + verifyEmail(token: String): boolean
+        + initiatePasswordReset(email: String): void
+        + resetPassword(token: String, newPassword: String): boolean
+        + getUserByEmail(email: String): Optional<User>
+    }
+
+    class JwtService {
+        - secretKey: String
+        - jwtExpiration: long
+        + generateToken(username: String): String
+        + extractUsername(token: String): String
+        + isTokenValid(token: String, username: String): boolean
+        - extractAllClaims(token: String): Claims
+    }
+
+    class EmailService {
+        - mailSender: JavaMailSender
+        - fromEmail: String
+        - frontendUrl: String
+        + sendVerificationEmail(email: String, token: String): void
+        + sendPasswordResetEmail(email: String, token: String): void
+    }
+
+    class FriendService {
+        - friendRepository: FriendRepository
+        + getFriendsByUserId(userId: String): List<Friend>
+        + getFriendById(id: String): Optional<Friend>
+        + createFriend(friend: Friend): Friend
+        + updateFriend(id: String, friend: Friend): Friend
+        + deleteFriend(id: String): void
+    }
+
+    class PdfReportService {
+        + generateReceiptReport(receipt: Receipt): byte[]
+        - addTitle(stream: PDPageContentStream, y: float, title: String): float
+        - addReceiptDetails(stream: PDPageContentStream, y: float, receipt: Receipt): float
+        - addPersonBreakdown(doc: PDDocument, context: PageContext, receipt: Receipt): void
+        - calculatePersonExpenses(receipt: Receipt): Map<String, PersonExpense>
+    }
+
+    class ReceiptCleanupScheduler {
+        - receiptRepository: IReceiptRepository
+        + cleanupExpiredAnonymousReceipts(): void
+    }
+}
+
+package "Repository Layer"  {
+    interface IReceiptRepository {
+        + save(receipt: Receipt): boolean
+        + findById(uid: String): Receipt
+        + findByUserId(userId: String): List<Receipt>
+        + findExpiredAnonymousReceipts(): List<Receipt>
+        + delete(uid: String): boolean
+    }
+
+    class ReceiptRepository {
+        - firestore: Firestore
+        - collection: String
+        + save(receipt: Receipt): boolean
+        + findById(uid: String): Receipt
+        + findByUserId(userId: String): List<Receipt>
+        + findExpiredAnonymousReceipts(): List<Receipt>
+        + delete(uid: String): boolean
+    }
+
+    class UserRepository {
+        - firestore: Firestore
+        - collection: String
+        + save(user: User): User
+        + findByEmail(email: String): Optional<User>
+        + findById(uid: String): Optional<User>
+        + update(user: User): User
+    }
+
+    class FriendRepository {
+        - firestore: Firestore
+        - collection: String
+        + save(friend: Friend): Friend
+        + findById(id: String): Optional<Friend>
+        + findByUserId(userId: String): List<Friend>
+        + update(friend: Friend): Friend
+        + delete(id: String): void
+    }
+
+    class VerificationTokenRepository {
+        - firestore: Firestore
+        - collection: String
+        + save(token: VerificationToken): VerificationToken
+        + findByToken(token: String): Optional<VerificationToken>
+        + deleteByEmail(email: String): void
+    }
+}
+
+package "Model Layer"  {
+    class Receipt {
+        - uid: String
+        - vendor: String
+        - receiptDate: String
+        - currency: String
+        - subtotal: double
+        - tax: double
+        - taxPercentage: double
+        - tip: double
+        - tipPercentage: double
+        - total: double
+        - lineItems: List<LineItem>
+        - userId: String
+        - createdAt: Timestamp
+        - expiresAt: Timestamp
+        - paymentStatus: String
+        - assigneePaymentStatus: Map<String, String>
+        - taxTipDistribution: String
+    }
+
+    class LineItem {
+        - name: String
+        - price: double
+        - quantity: int
+        - assignees: List<String>
+        - splitMode: String
+        - assigneePercentages: Map<String, Double>
+        - paymentStatuses: Map<String, String>
+    }
+
+    class User {
+        - uid: String
+        - email: String
+        - passwordHash: String
+        - emailVerified: boolean
+        - createdAt: Timestamp
+        - updatedAt: Timestamp
+    }
+
+    class Friend {
+        - id: String
+        - userId: String
+        - name: String
+        - email: String
+        - phone: String
+        - createdAt: Timestamp
+        - updatedAt: Timestamp
+    }
+
+    class VerificationToken {
+        - token: String
+        - email: String
+        - type: String
+        - expiresAt: Timestamp
+        - createdAt: Timestamp
+    }
+}
+
+package "DTO Layer" {
+    class ErrorResponse {
+        - error: String
+        - message: String
+    }
+
+    class SaveReceiptResponse {
+        - uid: String
+        - message: String
+    }
+
+    class LoginRequest {
+        - email: String
+        - password: String
+    }
+
+    class SignupRequest {
+        - email: String
+        - password: String
+    }
+
+    class AuthResponse {
+        - token: String
+        - email: String
+        - userId: String
+        - emailVerified: boolean
+        - message: String
+    }
+
+    class ForgotPasswordRequest {
+        - email: String
+    }
+
+    class PasswordResetRequest {
+        - token: String
+        - newPassword: String
+    }
+}
+
+package "Configuration Layer" {
+    class SecurityConfig {
+        - jwtAuthFilter: JwtAuthenticationFilter
+        + securityFilterChain(http: HttpSecurity): SecurityFilterChain
+        + corsConfigurationSource(): CorsConfigurationSource
+        + passwordEncoder(): BCryptPasswordEncoder
+    }
+
+    class JwtAuthenticationFilter {
+        - jwtService: JwtService
+        # doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain): void
+    }
+
+    class FirestoreConfig {
+        - projectId: String
+        - databaseId: String
+        + firestore(): Firestore
+    }
+}
+
+' Controllers -> Services
+ReceiptController --> ReceiptService
+ReceiptController --> OcrService
+ReceiptController --> PdfReportService
+AuthController --> UserService
+AuthController --> JwtService
+FriendController --> FriendService
+PaymentController --> ReceiptService
+PaymentController --> JwtService
+UserDashboardController --> ReceiptService
+UserDashboardController --> JwtService
+
+' Services -> Repositories
+ReceiptService --> IReceiptRepository
+UserService --> UserRepository
+UserService --> VerificationTokenRepository
+UserService --> EmailService
+FriendService --> FriendRepository
+ReceiptCleanupScheduler --> IReceiptRepository
+
+' Repositories -> Interface
+ReceiptRepository ..|> IReceiptRepository
+
+' Services -> Models
+ReceiptService ..> Receipt
+OcrService ..> Receipt
+OcrService ..> LineItem
+UserService ..> User
+FriendService ..> Friend
+PdfReportService ..> Receipt
+
+' Controllers -> DTOs
+AuthController ..> LoginRequest
+AuthController ..> SignupRequest
+AuthController ..> AuthResponse
+AuthController ..> ForgotPasswordRequest
+AuthController ..> PasswordResetRequest
+ReceiptController ..> ErrorResponse
+ReceiptController ..> SaveReceiptResponse
+
+' Repositories -> Models
+ReceiptRepository ..> Receipt
+UserRepository ..> User
+FriendRepository ..> Friend
+VerificationTokenRepository ..> VerificationToken
+
+' Models -> Models
+Receipt *-- LineItem : contains
+
+' Config -> Services
+JwtAuthenticationFilter --> JwtService
+SecurityConfig --> JwtAuthenticationFilter
+
+@enduml

@@ -1,0 +1,181 @@
+@startuml Payment Status Tracking Sequence Diagram
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "PaymentController" as PayCtrl
+participant "JwtService" as JWT
+participant "ReceiptService" as Service
+participant "ReceiptRepository" as Repo
+participant "Firestore" as DB
+participant "ReceiptCleanupScheduler" as Scheduler
+
+== Payment Status Update ==
+
+User -> Frontend: View receipt with assignees
+Frontend -> User: Display payment status for each person
+
+User -> Frontend: Mark "Alice" as paid
+
+Frontend -> PayCtrl: PATCH /api/payments/receipts/receipt_123/assignees/Alice\nAuthorization: Bearer <token>\n{status: "paid"}
+activate PayCtrl
+
+PayCtrl -> PayCtrl: Validate status value
+
+alt Invalid status
+    PayCtrl --> Frontend: 400 BAD REQUEST\n"Invalid payment status"
+    Frontend -> User: Show error
+else Valid status
+    PayCtrl -> JWT: extractUsername(token)
+    activate JWT
+    JWT --> PayCtrl: userEmail
+    deactivate JWT
+
+    PayCtrl -> Service: getReceipt("receipt_123")
+    activate Service
+
+    Service -> Repo: findById("receipt_123")
+    activate Repo
+    Repo -> DB: Get document
+    DB --> Repo: Receipt
+    Repo --> Service: Receipt
+    deactivate Repo
+
+    Service --> PayCtrl: Receipt
+    deactivate Service
+
+    PayCtrl -> PayCtrl: Verify authorization
+
+    alt Not authorized
+        PayCtrl --> Frontend: 403 FORBIDDEN\n"Access denied"
+        Frontend -> User: Show error
+    else Authorized
+        PayCtrl -> Service: updateAssigneePaymentStatus(\n"receipt_123", "Alice", "paid")
+        activate Service
+
+        Service -> Service: Update assigneePaymentStatus["Alice"] = "paid"
+
+        Service -> Service: Update payment status for all line items
+
+        Service -> Service: Calculate overall payment status
+
+        Service -> Service: Set receipt.paymentStatus
+
+        Service -> Repo: save(receipt)
+        activate Repo
+
+        Repo -> DB: Update document
+        activate DB
+        DB --> Repo: WriteResult
+        deactivate DB
+
+        Repo --> Service: true
+        deactivate Repo
+
+        Service --> PayCtrl: true
+        deactivate Service
+
+        PayCtrl -> Service: getReceipt("receipt_123")
+        activate Service
+        Service -> Repo: findById("receipt_123")
+        activate Repo
+        Repo -> DB: Get document
+        DB --> Repo: Updated Receipt
+        Repo --> Service: Receipt
+        deactivate Repo
+        Service --> PayCtrl: Receipt
+        deactivate Service
+
+        PayCtrl --> Frontend: 200 OK\n{receipt: {...}}
+        deactivate PayCtrl
+
+        Frontend -> Frontend: Update UI with new payment status
+
+        Frontend -> User: Show "Alice marked as paid"
+        Frontend -> User: Update payment status indicator
+
+        alt All assignees paid
+            Frontend -> User: Show "Receipt fully paid ✓"
+            Frontend -> User: Highlight with green badge
+        else Some paid
+            Frontend -> User: Show "Partially paid (2/3)"
+            Frontend -> User: Highlight with yellow badge
+        else None paid
+            Frontend -> User: Show "Pending payment"
+            Frontend -> User: Highlight with red badge
+        end
+    end
+end
+
+== Scheduled Receipt Cleanup (Background) ==
+
+note over Scheduler
+    Runs daily at 2:00 AM
+    @Scheduled(cron = "0 0 2 * * *")
+end note
+
+Scheduler -> Scheduler: cleanupExpiredAnonymousReceipts()
+activate Scheduler
+
+Scheduler -> Repo: findExpiredAnonymousReceipts()
+activate Repo
+
+Repo -> DB: Query receipts where:\n- userId = "anonymous"\n- expiresAt < now()
+activate DB
+DB --> Repo: List of expired receipts
+deactivate DB
+
+Repo --> Scheduler: List<Receipt> expiredReceipts
+deactivate Repo
+
+alt No expired receipts
+    Scheduler -> Scheduler: Log "No expired receipts found"
+else Expired receipts found
+    Scheduler -> Scheduler: Log "Found X expired receipts"
+
+    loop For each expired receipt
+        Scheduler -> Repo: delete(receipt.uid)
+        activate Repo
+
+        Repo -> DB: Delete document by UID
+        activate DB
+
+        alt Delete successful
+            DB --> Repo: WriteResult
+            Repo --> Scheduler: true
+            Scheduler -> Scheduler: Increment deletedCount
+            Scheduler -> Scheduler: Log "Deleted receipt: {uid}"
+        else Delete failed
+            DB --> Repo: Exception
+            Repo --> Scheduler: Exception
+            Scheduler -> Scheduler: Log error\n"Failed to delete {uid}"
+        end
+
+        deactivate DB
+        deactivate Repo
+    end
+
+    Scheduler -> Scheduler: Log "Cleanup completed.\nDeleted X out of Y receipts"
+end
+
+deactivate Scheduler
+
+note over Scheduler
+    Next run: Tomorrow at 2:00 AM
+end note
+
+== User Views Dashboard (After Cleanup) ==
+
+User -> Frontend: Navigate to /dashboard
+Frontend -> PayCtrl: GET /api/dashboard/receipts\nAuthorization: Bearer <token>
+
+PayCtrl -> Service: getUserReceipts(email)
+Service -> Repo: findByUserId(email)
+Repo -> DB: Query receipts
+DB --> Repo: Only valid receipts\n(expired anonymous ones deleted)
+Repo --> Service: List<Receipt>
+Service --> PayCtrl: Receipts
+PayCtrl --> Frontend: 200 OK [receipts...]
+
+Frontend -> User: Display receipts\n(expired ones no longer shown)
+
+@enduml

@@ -1,0 +1,177 @@
+@startuml Receipt Upload and OCR Sequence Diagram
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "ReceiptController" as Controller
+participant "OcrService" as OCR
+participant "Google Document AI" as DocAI
+participant "ReceiptService" as Service
+participant "ReceiptRepository" as Repo
+participant "Firestore" as DB
+
+== Receipt Upload and OCR Processing ==
+
+User -> Frontend: Click "Upload Receipt"
+Frontend -> User: Open file picker
+
+User -> Frontend: Select receipt image file\n(.jpg, .png, .pdf)
+Frontend -> Frontend: Validate file type & size
+Frontend -> Frontend: Create preview with FileReader API
+Frontend -> User: Display image preview
+
+User -> Frontend: Click "Upload and Parse"
+Frontend -> Frontend: Convert file to FormData
+
+Frontend -> Controller: POST /api/ocr/upload\nContent-Type: multipart/form-data\nfile: <image>
+activate Controller
+
+Controller -> Controller: Validate file exists\nValidate file type
+
+alt Invalid file
+    Controller --> Frontend: 400 BAD REQUEST\n"Invalid file format"
+    Frontend -> User: Show error message
+else Valid file
+    Controller -> OCR: processReceiptImage(fileContent)
+    activate OCR
+
+    OCR -> OCR: Convert MultipartFile to byte[]
+
+    OCR -> OCR: Create Document AI request
+
+    OCR -> DocAI: processDocument(request)
+    activate DocAI
+
+    DocAI -> DocAI: Perform OCR on image
+    DocAI -> DocAI: Extract text entities
+    DocAI -> DocAI: Identify receipt fields:\n- Vendor/Merchant\n- Date\n- Amounts (total, subtotal, tax, tip)\n- Line items
+
+    DocAI --> OCR: ProcessResponse with Document
+    deactivate DocAI
+
+    OCR -> OCR: Extract vendor name\nfrom entities (type: "supplier_name")
+
+    OCR -> OCR: Extract receipt date\nfrom entities (type: "receipt_date")
+
+    OCR -> OCR: Extract total amount\nfrom entities (type: "total_amount")
+
+    OCR -> OCR: Extract subtotal\nfrom entities (type: "subtotal_amount")
+
+    OCR -> OCR: Extract tax\nfrom entities (type: "total_tax_amount")
+
+    OCR -> OCR: Extract tip\nfrom entities (type: "tip_amount")
+
+    OCR -> OCR: Calculate tax percentage\ntaxPercentage = (tax / subtotal) * 100
+
+    OCR -> OCR: Calculate tip percentage\ntipPercentage = (tip / subtotal) * 100
+
+    OCR -> OCR: Extract line items\nfrom entities (type: "line_item")
+
+    OCR -> OCR: Create LineItem objects
+
+    OCR -> OCR: Generate unique UID\nUID = "receipt_" + UUID
+
+    OCR -> OCR: Build Receipt object
+
+    OCR --> Controller: Receipt object
+    deactivate OCR
+
+    Controller --> Frontend: 200 OK\n{receipt: {...}}
+    deactivate Controller
+
+    Frontend -> Frontend: Store receipt in state
+    Frontend -> Frontend: Populate ReceiptFields component
+    Frontend -> Frontend: Populate LineItemsSection component
+    Frontend -> User: Display parsed receipt data
+
+    User -> User: Review extracted data
+
+    alt Need to edit data
+        User -> Frontend: Edit vendor name
+        Frontend -> Frontend: Update receipt state
+
+        User -> Frontend: Edit amounts
+        Frontend -> Frontend: Update receipt state\nRecalculate totals
+
+        User -> Frontend: Add/edit/delete line items
+        Frontend -> Frontend: Update lineItems array
+        Frontend -> Frontend: Recalculate subtotal
+    end
+
+    User -> Frontend: Assign line items to people
+    loop For each line item
+        User -> Frontend: Select assignees\n(e.g., "Alice", "Bob")
+        Frontend -> Frontend: Update lineItem.assignees
+
+        User -> Frontend: Choose split mode\n("equal" or "percentage")
+        Frontend -> Frontend: Update lineItem.splitMode
+
+        alt Split mode is "percentage"
+            User -> Frontend: Set percentage for each assignee
+            Frontend -> Frontend: Update lineItem.assigneePercentages
+            Frontend -> Frontend: Validate percentages sum to 100%
+        end
+    end
+
+    User -> Frontend: Select tax/tip distribution\n("proportional" or "even")
+    Frontend -> Frontend: Update receipt.taxTipDistribution
+
+    User -> Frontend: Click "Save Receipt"
+
+    == Receipt Save ==
+
+    Frontend -> Controller: POST /api/receipts\nAuthorization: Bearer <token>\n{receipt: {...}}
+    activate Controller
+
+    Controller -> Controller: Extract user email from JWT\n(if authenticated)
+
+    Controller -> Service: saveReceipt(receipt)
+    activate Service
+
+    alt User authenticated
+        Service -> Service: Set receipt.userId = userEmail
+        Service -> Service: Set receipt.expiresAt = null
+    else Anonymous user
+        Service -> Service: Set receipt.userId = "anonymous"
+        Service -> Service: Set receipt.expiresAt = now + 7 days
+    end
+
+    Service -> Service: Set receipt.createdAt = now
+
+    Service -> Service: Initialize payment tracking
+
+    Service -> Service: Calculate overall paymentStatus
+
+    Service -> Repo: save(receipt)
+    activate Repo
+
+    Repo -> Repo: Convert Receipt to Map<String, Object>
+
+    Repo -> DB: firestore.collection("receipts")\n.document(receipt.uid).set(receiptMap)
+    activate DB
+
+    DB -> DB: Store document in collection
+    DB --> Repo: WriteResult with updateTime
+    deactivate DB
+
+    Repo --> Service: true
+    deactivate Repo
+
+    Service --> Controller: saved Receipt
+    deactivate Service
+
+    Controller --> Frontend: 201 CREATED\n{uid: "receipt_123", message: "Receipt saved"}
+    deactivate Controller
+
+    Frontend -> Frontend: Clear form state
+    Frontend -> User: Show success notification\n"Receipt saved successfully!"
+
+    alt User authenticated
+        Frontend -> User: Show "View in Dashboard" button
+        Frontend -> User: Show "Download PDF Report" button
+    else Anonymous
+        Frontend -> User: Show "Save this UID: receipt_123"
+        Frontend -> User: Show "Expires in 7 days"
+    end
+end
+
+@enduml

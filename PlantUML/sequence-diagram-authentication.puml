@@ -1,0 +1,217 @@
+@startuml Authentication Sequence Diagram
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "AuthController" as Controller
+participant "UserService" as Service
+participant "UserRepository" as UserRepo
+participant "EmailService" as Email
+participant "JwtService" as JWT
+participant "Firestore" as DB
+participant "SMTP Server" as SMTP
+
+== User Signup ==
+
+User -> Frontend: Navigate to /signup
+Frontend -> User: Display signup form
+
+User -> Frontend: Enter email & password
+User -> Frontend: Click "Sign Up"
+
+Frontend -> Controller: POST /api/auth/signup\n{email, password}
+activate Controller
+
+Controller -> Service: registerUser(email, password)
+activate Service
+
+Service -> UserRepo: findByEmail(email)
+activate UserRepo
+UserRepo -> DB: Query users collection
+DB --> UserRepo: User not found
+UserRepo --> Service: Optional.empty()
+deactivate UserRepo
+
+Service -> Service: Hash password with BCrypt
+
+Service -> Service: Generate unique UID
+Service -> Service: Create User object
+
+Service -> UserRepo: save(user)
+activate UserRepo
+UserRepo -> DB: Save user document
+DB --> UserRepo: Success
+UserRepo --> Service: User saved
+deactivate UserRepo
+
+Service -> Service: Generate verification token\n(UUID)
+
+Service -> Service: Create VerificationToken
+
+Service -> UserRepo: saveVerificationToken(token)
+activate UserRepo
+UserRepo -> DB: Save token document
+DB --> UserRepo: Success
+UserRepo --> Service: Token saved
+deactivate UserRepo
+
+Service -> Email: sendVerificationEmail(email, token)
+activate Email
+Email -> Email: Build email HTML\nwith verification link
+Email -> SMTP: Send email
+SMTP --> Email: Email queued
+Email --> Service: Email sent
+deactivate Email
+
+Service --> Controller: User created
+deactivate Service
+
+Controller --> Frontend: 201 CREATED\n{message, email, userId, emailVerified: false}
+deactivate Controller
+
+Frontend -> User: Show success message\n"Check your email to verify"
+
+== Email Verification ==
+
+User -> User: Open email client
+User -> User: Click verification link
+
+User -> Frontend: Navigate to\n/verify-email?token=abc123
+
+Frontend -> Controller: GET /api/auth/verify-email?token=abc123
+activate Controller
+
+Controller -> Service: verifyEmail(token)
+activate Service
+
+Service -> UserRepo: findVerificationToken(token)
+activate UserRepo
+UserRepo -> DB: Query tokens collection
+DB --> UserRepo: Token found
+UserRepo --> Service: VerificationToken
+deactivate UserRepo
+
+Service -> Service: Check if token expired
+alt Token expired
+    Service --> Controller: false
+    Controller --> Frontend: 400 BAD REQUEST\n"Token expired"
+    Frontend -> User: Show error
+else Token valid
+    Service -> UserRepo: findByEmail(email)
+    activate UserRepo
+    UserRepo -> DB: Query users collection
+    DB --> UserRepo: User found
+    UserRepo --> Service: User
+    deactivate UserRepo
+
+    Service -> Service: Set emailVerified = true
+
+    Service -> UserRepo: update(user)
+    activate UserRepo
+    UserRepo -> DB: Update user document
+    DB --> UserRepo: Success
+    UserRepo --> Service: User updated
+    deactivate UserRepo
+
+    Service -> UserRepo: deleteVerificationToken(token)
+    activate UserRepo
+    UserRepo -> DB: Delete token document
+    DB --> UserRepo: Success
+    UserRepo --> Service: Token deleted
+    deactivate UserRepo
+
+    Service --> Controller: true
+    deactivate Service
+
+    Controller --> Frontend: 200 OK\n"Email verified successfully"
+    deactivate Controller
+
+    Frontend -> User: Show success\n"You can now log in"
+end
+
+== User Login ==
+
+User -> Frontend: Navigate to /login
+Frontend -> User: Display login form
+
+User -> Frontend: Enter email & password
+User -> Frontend: Click "Login"
+
+Frontend -> Controller: POST /api/auth/login\n{email, password}
+activate Controller
+
+Controller -> Service: authenticateUser(email, password)
+activate Service
+
+Service -> UserRepo: findByEmail(email)
+activate UserRepo
+UserRepo -> DB: Query users collection
+DB --> UserRepo: User found
+UserRepo --> Service: User
+deactivate UserRepo
+
+Service -> Service: Verify password with BCrypt
+
+alt Password invalid
+    Service --> Controller: Optional.empty()
+    Controller --> Frontend: 401 UNAUTHORIZED\n"Invalid credentials"
+    Frontend -> User: Show error
+else Password valid
+    Service --> Controller: Optional.of(User)
+    deactivate Service
+
+    Controller -> JWT: generateToken(email)
+    activate JWT
+    JWT -> JWT: Create JWT claims\n{sub: email, iat: now, exp: now + 24h}
+    JWT -> JWT: Sign with secret key (HS256)
+    JWT --> Controller: JWT token string
+    deactivate JWT
+
+    Controller --> Frontend: 200 OK\n{token, email, userId, emailVerified}
+    deactivate Controller
+
+    Frontend -> Frontend: Store token in localStorage
+    Frontend -> Frontend: Update AuthContext state
+
+    Frontend -> User: Redirect to /dashboard
+end
+
+== Authenticated Request ==
+
+User -> Frontend: View dashboard
+Frontend -> Controller: GET /api/dashboard/receipts\nAuthorization: Bearer <token>
+activate Controller
+
+participant "JwtAuthenticationFilter" as Filter
+
+Controller -> Filter: Process request
+activate Filter
+
+Filter -> JWT: extractUsername(token)
+activate JWT
+JWT -> JWT: Parse and verify JWT
+JWT --> Filter: email
+deactivate JWT
+
+Filter -> JWT: isTokenValid(token, email)
+activate JWT
+JWT -> JWT: Check expiration\nVerify signature
+JWT --> Filter: true
+deactivate JWT
+
+Filter -> Filter: Create Authentication object\nSet in SecurityContext
+Filter --> Controller: Continue with authentication
+deactivate Filter
+
+Controller -> Service: getUserReceipts(email)
+Service -> UserRepo: findByUserId(email)
+UserRepo -> DB: Query receipts where userId = email
+DB --> UserRepo: List of receipts
+UserRepo --> Service: Receipts
+Service --> Controller: Receipts
+
+Controller --> Frontend: 200 OK\n[receipts...]
+deactivate Controller
+
+Frontend -> User: Display receipts
+
+@enduml

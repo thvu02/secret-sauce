@@ -1,0 +1,248 @@
+@startuml Friend Management Sequence Diagram
+
+actor User
+participant "Frontend\n(React)" as Frontend
+participant "FriendController" as Controller
+participant "Authentication" as Auth
+participant "FriendService" as Service
+participant "FriendRepository" as Repo
+participant "Firestore" as DB
+
+== View Friends List ==
+
+User -> Frontend: Navigate to /profile
+
+Frontend -> Controller: GET /api/friends\nAuthorization: Bearer <token>
+activate Controller
+
+Controller -> Auth: Get authenticated user
+activate Auth
+Auth --> Controller: userEmail from JWT
+deactivate Auth
+
+Controller -> Service: getFriendsByUserId(userEmail)
+activate Service
+
+Service -> Repo: findByUserId(userEmail)
+activate Repo
+
+Repo -> DB: Query friends collection\nwhere userId = userEmail
+activate DB
+DB --> Repo: List of Friend documents
+deactivate DB
+
+Repo --> Service: List<Friend>
+deactivate Repo
+
+Service --> Controller: List<Friend>
+deactivate Service
+
+Controller --> Frontend: 200 OK\n[{id, name, email, phone}, ...]
+deactivate Controller
+
+Frontend -> Frontend: Update FriendList component
+Frontend -> User: Display friends table
+
+== Add New Friend ==
+
+User -> Frontend: Click "Add Friend"
+Frontend -> User: Show FriendForm dialog
+
+User -> Frontend: Enter friend details:\n- Name: "Alice"
+User -> Frontend: - Email: "alice@example.com"
+User -> Frontend: - Phone: "+1234567890"
+User -> Frontend: Click "Save"
+
+Frontend -> Frontend: Validate form inputs
+
+alt Validation fails
+    Frontend -> User: Show validation errors
+else Validation passes
+    Frontend -> Controller: POST /api/friends\nAuthorization: Bearer <token>\n{name, email, phone}
+    activate Controller
+
+    Controller -> Auth: Get authenticated user
+    activate Auth
+    Auth --> Controller: userEmail
+    deactivate Auth
+
+    Controller -> Controller: Set friend.userId = userEmail
+    Controller -> Controller: Set friend.id = null\n(generate new ID)
+
+    Controller -> Service: createFriend(friend)
+    activate Service
+
+    Service -> Service: Validate friend data
+
+    alt Validation fails
+        Service --> Controller: IllegalArgumentException
+        Controller --> Frontend: 400 BAD REQUEST\n{error: "validation error"}
+        Frontend -> User: Show error message
+    else Validation succeeds
+        Service -> Service: Generate unique friend ID\nid = "friend_" + UUID
+
+        Service -> Service: Set timestamps:\n- createdAt = now\n- updatedAt = now
+
+        Service -> Repo: save(friend)
+        activate Repo
+
+        Repo -> Repo: Convert Friend to Map
+
+        Repo -> DB: firestore.collection("friends")\n.document(friend.id).set(friendMap)
+        activate DB
+        DB --> Repo: WriteResult
+        deactivate DB
+
+        Repo --> Service: Friend saved
+        deactivate Repo
+
+        Service --> Controller: Friend
+        deactivate Service
+
+        Controller --> Frontend: 201 CREATED\n{id, name, email, phone, ...}
+        deactivate Controller
+
+        Frontend -> Frontend: Add friend to local state
+        Frontend -> Frontend: Update FriendList
+        Frontend -> Frontend: Close dialog
+        Frontend -> User: Show success message\n"Friend added successfully"
+        Frontend -> User: Friend appears in list
+    end
+end
+
+== Update Friend ==
+
+User -> Frontend: Click "Edit" on friend row
+Frontend -> User: Show edit dialog with current values
+
+User -> Frontend: Modify name to "Alice Smith"
+User -> Frontend: Click "Update"
+
+Frontend -> Controller: PUT /api/friends/friend_123\nAuthorization: Bearer <token>\n{name: "Alice Smith", email, phone}
+activate Controller
+
+Controller -> Service: updateFriend("friend_123", updatedFriend)
+activate Service
+
+Service -> Repo: findById("friend_123")
+activate Repo
+
+Repo -> DB: Get friend document
+activate DB
+
+alt Friend not found
+    DB --> Repo: Document not exists
+    Repo --> Service: Optional.empty()
+    Service --> Controller: IllegalArgumentException\n"Friend not found"
+    Controller --> Frontend: 404 NOT FOUND
+    Frontend -> User: Show error
+else Friend found
+    DB --> Repo: Friend document
+    deactivate DB
+    Repo --> Service: Optional.of(Friend)
+    deactivate Repo
+
+    Service -> Service: Update friend fields:\n- name\n- email\n- phone
+
+    Service -> Service: Set updatedAt = now\n(keep createdAt unchanged)
+
+    Service -> Repo: save(friend)
+    activate Repo
+
+    Repo -> DB: Update friend document
+    activate DB
+    DB --> Repo: WriteResult
+    deactivate DB
+
+    Repo --> Service: Friend updated
+    deactivate Repo
+
+    Service --> Controller: Friend
+    deactivate Service
+
+    Controller --> Frontend: 200 OK\n{id, name: "Alice Smith", ...}
+    deactivate Controller
+
+    Frontend -> Frontend: Update friend in local state
+    Frontend -> Frontend: Refresh FriendList
+    Frontend -> Frontend: Close dialog
+    Frontend -> User: Show success message
+    Frontend -> User: Updated friend shown in list
+end
+
+== Use Friend in Receipt Assignment ==
+
+User -> Frontend: Create new receipt
+Frontend -> User: Show receipt form
+
+User -> Frontend: Add line item "Burger - $15"
+
+User -> Frontend: Click "Assign" for line item
+
+Frontend -> Controller: GET /api/friends\nAuthorization: Bearer <token>
+activate Controller
+Controller -> Service: getFriendsByUserId(email)
+Service -> Repo: findByUserId(email)
+Repo -> DB: Query friends
+DB --> Repo: Friends
+Repo --> Service: Friends
+Service --> Controller: Friends
+Controller --> Frontend: 200 OK [friends...]
+deactivate Controller
+
+Frontend -> Frontend: Populate assignee dropdown with friend names
+Frontend -> User: Show dropdown: ["Alice Smith", "Bob", "Charlie"]
+
+User -> Frontend: Select "Alice Smith" and "Bob"
+Frontend -> Frontend: Add to lineItem.assignees
+
+Frontend -> User: Show assigned: Alice Smith, Bob
+
+== Delete Friend ==
+
+User -> Frontend: Click "Delete" on friend row
+Frontend -> User: Show confirmation dialog\n"Delete Alice Smith?"
+
+User -> Frontend: Click "Confirm"
+
+Frontend -> Controller: DELETE /api/friends/friend_123\nAuthorization: Bearer <token>
+activate Controller
+
+Controller -> Service: deleteFriend("friend_123")
+activate Service
+
+Service -> Repo: delete("friend_123")
+activate Repo
+
+Repo -> DB: firestore.collection("friends")\n.document("friend_123").delete()
+activate DB
+
+alt Delete successful
+    DB --> Repo: WriteResult
+    deactivate DB
+    Repo --> Service: void (success)
+    deactivate Repo
+
+    Service --> Controller: void (success)
+    deactivate Service
+
+    Controller --> Frontend: 204 NO CONTENT
+    deactivate Controller
+
+    Frontend -> Frontend: Remove friend from local state
+    Frontend -> Frontend: Update FriendList
+    Frontend -> User: Show success message
+    Frontend -> User: Friend removed from list
+else Delete failed
+    DB --> Repo: Exception
+    deactivate DB
+    Repo --> Service: Exception
+    deactivate Repo
+    Service --> Controller: Exception
+    deactivate Service
+    Controller --> Frontend: 500 INTERNAL SERVER ERROR
+    deactivate Controller
+    Frontend -> User: Show error message
+end
+
+@enduml
