@@ -1,23 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { dashboardApi, receiptApi, ApiError } from '../services/api';
+import { dashboardApi, receiptApi, friendApi, userProfileApi, ApiError } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { PaymentStatusTracker } from '../components/PaymentStatusTracker';
+import { SpendingGraph } from '../components/SpendingGraph';
 import type { Receipt } from '../types';
+import type { Friend } from '../types/friend';
+import type { UserProfile } from '../types/userProfile';
 import { Navbar } from '../components';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const [receipts, setReceipts] = useState<Receipt[]>([]);
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
 
     useEffect(() => {
-        const fetchReceipts = async () => {
+        const fetchData = async () => {
             try {
-                const data = await dashboardApi.getUserReceipts();
-                setReceipts(data);
+                const [receiptsData, friendsData, profileData] = await Promise.all([
+                    dashboardApi.getUserReceipts(),
+                    friendApi.getAllFriends().catch(() => []), // Gracefully handle missing friends
+                    userProfileApi.getProfile().catch(() => null), // Gracefully handle missing profile
+                ]);
+                setReceipts(receiptsData);
+                setFriends(friendsData);
+                setUserProfile(profileData);
             } catch (err) {
                 if (err instanceof ApiError) {
                     setError(err.message);
@@ -29,7 +40,7 @@ export const Dashboard: React.FC = () => {
             }
         };
 
-        fetchReceipts();
+        fetchData();
     }, []);
 
     const handleGeneratePdf = async (receipt: Receipt) => {
@@ -131,6 +142,18 @@ export const Dashboard: React.FC = () => {
                         <div className="text-sm text-red-800">{error}</div>
                     </div>
                 )}
+
+                {/* Spending Analytics Graph */}
+                {receipts.length > 0 && (
+                    <div className="mb-8">
+                        <SpendingGraph receipts={receipts} userProfile={userProfile} />
+                    </div>
+                )}
+
+                {/* Receipts List Section */}
+                <div className="mb-4">
+                    <h2 className="text-2xl font-semibold text-gray-800">Your Receipts</h2>
+                </div>
 
                 {receipts.length === 0 ? (
                     <div className="text-center py-12">
@@ -304,6 +327,7 @@ export const Dashboard: React.FC = () => {
                                             tip={selectedReceipt.tip}
                                             taxTipDistribution={selectedReceipt.taxTipDistribution}
                                             onUpdate={handlePaymentUpdate}
+                                            friends={friends}
                                         />
                                     </div>
                                 )}

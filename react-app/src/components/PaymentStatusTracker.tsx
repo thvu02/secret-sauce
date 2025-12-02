@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { paymentApi } from '../services/api';
 import type { LineItem } from '../types';
+import type { Friend } from '../types/friend';
 
 interface PaymentStatusTrackerProps {
     receiptId: string;
@@ -11,6 +12,7 @@ interface PaymentStatusTrackerProps {
     tip?: number;
     taxTipDistribution?: 'proportional' | 'even';
     onUpdate?: () => void;
+    friends?: Friend[];
 }
 
 interface AssigneeInfo {
@@ -35,8 +37,10 @@ export const PaymentStatusTracker: React.FC<PaymentStatusTrackerProps> = ({
     tip = 0,
     taxTipDistribution = 'proportional',
     onUpdate,
+    friends = [],
 }) => {
     const [updating, setUpdating] = useState<string | null>(null);
+    const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
     // Group line items by assignee and calculate amounts including tax and tip
     const assigneeData = useMemo(() => {
@@ -117,6 +121,36 @@ export const PaymentStatusTracker: React.FC<PaymentStatusTrackerProps> = ({
         }
     };
 
+    // Get friend's contact email by matching assignee name
+    const getFriendEmail = (assigneeName: string): string | null => {
+        const friend = friends.find(f => f.displayName === assigneeName);
+        return friend?.contactEmail || null;
+    };
+
+    const handleSendReminder = async (assigneeName: string) => {
+        const email = getFriendEmail(assigneeName);
+        if (!email) {
+            alert('No email address found for this assignee. Please add their contact email in the Profile > Friend Phonebook section.');
+            return;
+        }
+
+        if (!window.confirm(`Send payment reminder to ${assigneeName} at ${email}?`)) {
+            return;
+        }
+
+        setSendingReminder(assigneeName);
+
+        try {
+            await paymentApi.sendPaymentReminder(receiptId, assigneeName);
+            alert(`Payment reminder sent successfully to ${email}`);
+        } catch (error: any) {
+            console.error('Failed to send reminder:', error);
+            alert(error.message || 'Failed to send reminder. Please make sure your profile is complete with payment information.');
+        } finally {
+            setSendingReminder(null);
+        }
+    };
+
     return (
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Payment Status by Assignee</h3>
@@ -126,8 +160,10 @@ export const PaymentStatusTracker: React.FC<PaymentStatusTrackerProps> = ({
             ) : (
                 <div className="space-y-4">
                     {assigneeData.map((assignee) => {
-                        const isPaid = assignee.paymentStatus === 'paid';
+                                        const isPaid = assignee.paymentStatus === 'paid';
                         const isUpdating = updating === assignee.name;
+                        const isSendingReminder = sendingReminder === assignee.name;
+                        const hasEmail = !!getFriendEmail(assignee.name);
 
                         return (
                             <div
@@ -138,34 +174,54 @@ export const PaymentStatusTracker: React.FC<PaymentStatusTrackerProps> = ({
                                     <div>
                                         <h4 className="font-medium text-gray-900">
                                             {assignee.name}
+                                            {hasEmail && (
+                                                <span className="ml-2 text-xs text-blue-600">📧</span>
+                                            )}
                                         </h4>
                                         <p className="text-sm text-gray-600 mt-1">
                                             Total owed: ${assignee.totalOwed.toFixed(2)}
                                         </p>
                                     </div>
 
-                                    <button
-                                        onClick={() =>
-                                            handleStatusChange(
-                                                assignee.name,
-                                                isPaid ? 'unpaid' : 'paid'
-                                            )
-                                        }
-                                        disabled={isUpdating}
-                                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                                            isPaid
-                                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    >
-                                        {isUpdating ? (
-                                            <span>Updating...</span>
-                                        ) : isPaid ? (
-                                            <span>✓ Paid</span>
-                                        ) : (
-                                            <span>Mark as Paid</span>
+                                    <div className="flex gap-2">
+                                        {hasEmail && !isPaid && (
+                                            <button
+                                                onClick={() => handleSendReminder(assignee.name)}
+                                                disabled={isSendingReminder}
+                                                className="px-3 py-2 text-sm font-semibold rounded-lg transition-colors bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title={`Send payment reminder to ${assignee.name}`}
+                                            >
+                                                {isSendingReminder ? (
+                                                    <span>Sending...</span>
+                                                ) : (
+                                                    <span>📧 Send Reminder</span>
+                                                )}
+                                            </button>
                                         )}
-                                    </button>
+
+                                        <button
+                                            onClick={() =>
+                                                handleStatusChange(
+                                                    assignee.name,
+                                                    isPaid ? 'unpaid' : 'paid'
+                                                )
+                                            }
+                                            disabled={isUpdating}
+                                            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                                                isPaid
+                                                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                    : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        >
+                                            {isUpdating ? (
+                                                <span>Updating...</span>
+                                            ) : isPaid ? (
+                                                <span>✓ Paid</span>
+                                            ) : (
+                                                <span>Mark as Paid</span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Show item breakdown */}

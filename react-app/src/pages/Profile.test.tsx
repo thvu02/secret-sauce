@@ -83,16 +83,16 @@ describe('Profile', () => {
         const mockFriends: Friend[] = [
             {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: 'alice@example.com',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '555-1111',
-                paypalHandle: 'alice@example.com',
+                paypalHandle: 'alice@paypal.com',
             },
             {
                 id: '2',
-                firstName: 'Bob',
-                lastName: 'Jones',
+                displayName: 'Bob Jones',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -135,8 +135,8 @@ describe('Profile', () => {
             const user = userEvent.setup();
             const newFriend: Friend = {
                 id: '3',
-                firstName: 'Charlie',
-                lastName: 'Brown',
+                displayName: 'Charlie Brown',
+                contactEmail: '',
                 venmoHandle: '@charlie',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -154,17 +154,18 @@ describe('Profile', () => {
 
             await user.click(screen.getByRole('button', { name: /add new friend/i }));
 
-            await user.type(screen.getByLabelText(/first name/i), 'Charlie');
-            await user.type(screen.getByLabelText(/last name/i), 'Brown');
-            await user.type(screen.getByLabelText(/venmo handle/i), '@charlie');
+            // Get all display name inputs and use the last one (friend form)
+            const displayNameInputs = screen.getAllByLabelText(/display name/i);
+            await user.type(displayNameInputs[displayNameInputs.length - 1], 'Charlie Brown');
+            const venmoHandleInputs = screen.getAllByLabelText(/venmo handle/i);
+            await user.type(venmoHandleInputs[venmoHandleInputs.length - 1], '@charlie');
 
             await user.click(screen.getByRole('button', { name: /add friend/i }));
 
             await waitFor(() => {
                 expect(friendApi.createFriend).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        firstName: 'Charlie',
-                        lastName: 'Brown',
+                        displayName: 'Charlie Brown',
                         venmoHandle: '@charlie',
                     })
                 );
@@ -175,8 +176,8 @@ describe('Profile', () => {
             const user = userEvent.setup();
             const newFriend: Friend = {
                 id: '3',
-                firstName: 'Charlie',
-                lastName: 'Brown',
+                displayName: 'Charlie Brown',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -193,8 +194,10 @@ describe('Profile', () => {
             });
 
             await user.click(screen.getByRole('button', { name: /add new friend/i }));
-            await user.type(screen.getByLabelText(/first name/i), 'Charlie');
-            await user.type(screen.getByLabelText(/last name/i), 'Brown');
+
+            // Get all display name inputs and use the last one (friend form)
+            const displayNameInputs = screen.getAllByLabelText(/display name/i);
+            await user.type(displayNameInputs[displayNameInputs.length - 1], 'Charlie Brown');
             await user.click(screen.getByRole('button', { name: /add friend/i }));
 
             await waitFor(() => {
@@ -209,8 +212,8 @@ describe('Profile', () => {
         const mockFriends: Friend[] = [
             {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: '',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -231,15 +234,15 @@ describe('Profile', () => {
             await user.click(editButton);
 
             expect(screen.getByText('Edit Friend')).toBeInTheDocument();
-            expect(screen.getByDisplayValue('Alice')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('Alice Smith')).toBeInTheDocument();
         });
 
         it('should update friend on form submission', async () => {
             const user = userEvent.setup();
             const updatedFriend: Friend = {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Johnson',
+                displayName: 'Alice Johnson',
+                contactEmail: '',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -256,9 +259,11 @@ describe('Profile', () => {
 
             await user.click(screen.getByRole('button', { name: /edit/i }));
 
-            const lastNameInput = screen.getByLabelText(/last name/i);
-            await user.clear(lastNameInput);
-            await user.type(lastNameInput, 'Johnson');
+            // Get all display name inputs and use the last one (friend form)
+            const displayNameInputs = screen.getAllByLabelText(/display name/i);
+            const displayNameInput = displayNameInputs[displayNameInputs.length - 1];
+            await user.clear(displayNameInput);
+            await user.type(displayNameInput, 'Alice Johnson');
 
             await user.click(screen.getByRole('button', { name: /update friend/i }));
 
@@ -266,7 +271,7 @@ describe('Profile', () => {
                 expect(friendApi.updateFriend).toHaveBeenCalledWith(
                     '1',
                     expect.objectContaining({
-                        lastName: 'Johnson',
+                        displayName: 'Alice Johnson',
                     })
                 );
             });
@@ -277,8 +282,8 @@ describe('Profile', () => {
         const mockFriends: Friend[] = [
             {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -342,8 +347,10 @@ describe('Profile', () => {
             });
 
             await user.click(screen.getByRole('button', { name: /add new friend/i }));
-            await user.type(screen.getByLabelText(/first name/i), 'Charlie');
-            await user.type(screen.getByLabelText(/last name/i), 'Brown');
+
+            // Get all display name inputs and use the last one (friend form)
+            const displayNameInputs = screen.getAllByLabelText(/display name/i);
+            await user.type(displayNameInputs[displayNameInputs.length - 1], 'Charlie Brown');
             await user.click(screen.getByRole('button', { name: /add friend/i }));
 
             await waitFor(() => {

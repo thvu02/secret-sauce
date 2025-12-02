@@ -1,9 +1,7 @@
-export interface Friend {
-  id?: string;
+export interface UserProfile {
   userId?: string;
-  displayName: string;
+  displayName?: string;
   venmoHandle?: string;
   zellePhoneNumber?: string;
   paypalHandle?: string;
-  contactEmail?: string;
 }

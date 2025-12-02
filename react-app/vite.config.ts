@@ -12,4 +12,10 @@ export default defineConfig({
   build: {
     outDir: '../build'
   },
+  // @ts-expect-error - test config is valid but not in base Vite types
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    setupFiles: './src/test-setup.ts',
+  },
 })

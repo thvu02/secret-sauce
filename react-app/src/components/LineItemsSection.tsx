@@ -1,5 +1,7 @@
 import React from 'react';
 import type { LineItem } from '../types';
+import type { Friend } from '../types/friend';
+import type { UserProfile } from '../types/userProfile';
 import { LineItemRow } from './LineItemRow';
 
 interface LineItemsSectionProps {
@@ -8,6 +10,8 @@ interface LineItemsSectionProps {
     onAdd: () => void;
     onRemove: (index: number) => void;
     onAssigneeBlur: (index: number) => void;
+    friends?: Friend[];
+    userProfile?: UserProfile | null;
 }
 
 export const LineItemsSection: React.FC<LineItemsSectionProps> = ({
@@ -16,6 +20,8 @@ export const LineItemsSection: React.FC<LineItemsSectionProps> = ({
     onAdd,
     onRemove,
     onAssigneeBlur,
+    friends = [],
+    userProfile = null,
 }) => {
     return (
         <div className="mt-4">
@@ -39,6 +45,8 @@ export const LineItemsSection: React.FC<LineItemsSectionProps> = ({
                     onUpdate={onUpdate}
                     onRemove={onRemove}
                     onAssigneeBlur={onAssigneeBlur}
+                    friends={friends}
+                    userProfile={userProfile}
                 />
             ))}
 

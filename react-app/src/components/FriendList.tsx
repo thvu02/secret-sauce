@@ -25,7 +25,7 @@ export default function FriendList({ friends, onEdit, onDelete }: FriendListProp
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900">
-                {friend.firstName} {friend.lastName}
+                {friend.displayName}
               </h3>
 
               <div className="mt-3 space-y-2">
@@ -62,7 +62,7 @@ export default function FriendList({ friends, onEdit, onDelete }: FriendListProp
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${friend.firstName} ${friend.lastName}?`)) {
+                  if (confirm(`Are you sure you want to delete ${friend.displayName}?`)) {
                     onDelete(friend.id!);
                   }
                 }}

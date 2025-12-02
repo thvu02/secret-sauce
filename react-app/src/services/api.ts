@@ -1,5 +1,6 @@
 import type { Receipt, SaveReceiptResponse } from '../types';
 import type { Friend } from '../types/friend';
+import type { UserProfile } from '../types/userProfile';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -13,12 +14,10 @@ export class ApiError extends Error {
     }
 }
 
-// Helper to get auth token from localStorage
 const getAuthToken = (): string | null => {
     return localStorage.getItem('authToken');
 };
 
-// Helper to get headers with optional auth
 const getHeaders = (includeAuth = false): HeadersInit => {
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -35,9 +34,6 @@ const getHeaders = (includeAuth = false): HeadersInit => {
 };
 
 export const receiptApi = {
-    /**
-     * Upload and parse a receipt image using OCR
-     */
     async uploadReceipt(file: File): Promise<Receipt> {
         const formData = new FormData();
         formData.append('file', file);
@@ -55,9 +51,6 @@ export const receiptApi = {
         return response.json();
     },
 
-    /**
-     * Save a receipt to the database
-     */
     async saveReceipt(receipt: Receipt): Promise<SaveReceiptResponse> {
         const response = await fetch(`${API_BASE_URL}/receipts`, {
             method: 'POST',
@@ -73,9 +66,6 @@ export const receiptApi = {
         return response.json();
     },
 
-    /**
-     * Generate and download PDF report for a receipt
-     */
     async generateReport(receipt: Receipt): Promise<void> {
         const token = getAuthToken();
         const headers: HeadersInit = {
@@ -96,7 +86,6 @@ export const receiptApi = {
             throw new ApiError(error.error || 'Report generation failed', response.status);
         }
 
-        // Get the PDF blob
         const blob = await response.blob();
 
         // Create download link
@@ -140,9 +129,6 @@ export interface ResetPasswordRequest {
 }
 
 export const authApi = {
-    /**
-     * Register a new user
-     */
     async signup(data: SignupRequest): Promise<AuthResponse> {
         const response = await fetch(`${API_BASE_URL}/auth/signup`, {
             method: 'POST',
@@ -158,9 +144,6 @@ export const authApi = {
         return response.json();
     },
 
-    /**
-     * Login user
-     */
     async login(data: LoginRequest): Promise<AuthResponse> {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
@@ -176,9 +159,6 @@ export const authApi = {
         return response.json();
     },
 
-    /**
-     * Verify email with token
-     */
     async verifyEmail(token: string): Promise<{ message: string }> {
         const response = await fetch(`${API_BASE_URL}/auth/verify-email?token=${token}`, {
             method: 'GET',
@@ -192,9 +172,6 @@ export const authApi = {
         return response.json();
     },
 
-    /**
-     * Request password reset
-     */
     async forgotPassword(data: ForgotPasswordRequest): Promise<{ message: string }> {
         const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
             method: 'POST',
@@ -210,9 +187,6 @@ export const authApi = {
         return response.json();
     },
 
-    /**
-     * Reset password with token
-     */
     async resetPassword(data: ResetPasswordRequest): Promise<{ message: string }> {
         const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
             method: 'POST',
@@ -228,9 +202,6 @@ export const authApi = {
         return response.json();
     },
 
-    /**
-     * Get current user info
-     */
     async getCurrentUser(): Promise<AuthResponse> {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
             method: 'GET',
@@ -246,11 +217,7 @@ export const authApi = {
     },
 };
 
-// Dashboard API
 export const dashboardApi = {
-    /**
-     * Get all receipts for authenticated user
-     */
     async getUserReceipts(): Promise<Receipt[]> {
         const response = await fetch(`${API_BASE_URL}/dashboard/receipts`, {
             method: 'GET',
@@ -265,9 +232,6 @@ export const dashboardApi = {
         return response.json();
     },
 
-    /**
-     * Get specific receipt by ID
-     */
     async getReceipt(receiptId: string): Promise<Receipt> {
         const response = await fetch(`${API_BASE_URL}/dashboard/receipts/${receiptId}`, {
             method: 'GET',
@@ -282,9 +246,6 @@ export const dashboardApi = {
         return response.json();
     },
 
-    /**
-     * Delete a receipt
-     */
     async deleteReceipt(receiptId: string): Promise<{ deleted: boolean; message: string }> {
         const response = await fetch(`${API_BASE_URL}/dashboard/receipts/${receiptId}`, {
             method: 'DELETE',
@@ -300,11 +261,7 @@ export const dashboardApi = {
     },
 };
 
-// Payment API
 export const paymentApi = {
-    /**
-     * Update payment status for an assignee across all their line items
-     */
     async updateAssigneePaymentStatus(
         receiptId: string,
         assignee: string,
@@ -353,13 +310,26 @@ export const paymentApi = {
 
         return response.json();
     },
+
+    async sendPaymentReminder(receiptId: string, assignee: string): Promise<{ sent: boolean; message: string }> {
+        const response = await fetch(
+            `${API_BASE_URL}/payments/receipts/${receiptId}/assignees/${encodeURIComponent(assignee)}/remind`,
+            {
+                method: 'POST',
+                headers: getHeaders(true),
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new ApiError(error.message || error.error || 'Failed to send reminder', response.status);
+        }
+
+        return response.json();
+    },
 };
 
-// Friend API
 export const friendApi = {
-    /**
-     * Get all friends for authenticated user
-     */
     async getAllFriends(): Promise<Friend[]> {
         const response = await fetch(`${API_BASE_URL}/friends`, {
             method: 'GET',
@@ -374,9 +344,6 @@ export const friendApi = {
         return response.json();
     },
 
-    /**
-     * Get a specific friend by ID
-     */
     async getFriend(friendId: string): Promise<Friend> {
         const response = await fetch(`${API_BASE_URL}/friends/${friendId}`, {
             method: 'GET',
@@ -391,9 +358,6 @@ export const friendApi = {
         return response.json();
     },
 
-    /**
-     * Create a new friend
-     */
     async createFriend(friend: Friend): Promise<Friend> {
         const response = await fetch(`${API_BASE_URL}/friends`, {
             method: 'POST',
@@ -409,9 +373,6 @@ export const friendApi = {
         return response.json();
     },
 
-    /**
-     * Update an existing friend
-     */
     async updateFriend(friendId: string, friend: Friend): Promise<Friend> {
         const response = await fetch(`${API_BASE_URL}/friends/${friendId}`, {
             method: 'PUT',
@@ -427,9 +388,6 @@ export const friendApi = {
         return response.json();
     },
 
-    /**
-     * Delete a friend
-     */
     async deleteFriend(friendId: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/friends/${friendId}`, {
             method: 'DELETE',
@@ -440,5 +398,51 @@ export const friendApi = {
             const error = await response.json();
             throw new ApiError(error.message || error.error || 'Failed to delete friend', response.status);
         }
+    },
+};
+
+export const userProfileApi = {
+    async getProfile(): Promise<UserProfile> {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+            method: 'GET',
+            headers: getHeaders(true),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new ApiError(error.message || error.error || 'Failed to fetch profile', response.status);
+        }
+
+        return response.json();
+    },
+
+    async createProfile(profile: UserProfile): Promise<UserProfile> {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+            method: 'POST',
+            headers: getHeaders(true),
+            body: JSON.stringify(profile),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new ApiError(error.message || error.error || 'Failed to create profile', response.status);
+        }
+
+        return response.json();
+    },
+
+    async updateProfile(profile: UserProfile): Promise<UserProfile> {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+            method: 'PUT',
+            headers: getHeaders(true),
+            body: JSON.stringify(profile),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new ApiError(error.message || error.error || 'Failed to update profile', response.status);
+        }
+
+        return response.json();
     },
 };

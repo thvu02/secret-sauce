@@ -1,5 +1,8 @@
 import React from 'react';
 import type { LineItem } from '../types';
+import type { Friend } from '../types/friend';
+import type { UserProfile } from '../types/userProfile';
+import { AssigneeInput } from './AssigneeInput';
 
 interface LineItemRowProps {
     lineItem: LineItem;
@@ -7,6 +10,8 @@ interface LineItemRowProps {
     onUpdate: (index: number, key: keyof LineItem, value: unknown) => void;
     onRemove: (index: number) => void;
     onAssigneeBlur: (index: number) => void;
+    friends?: Friend[];
+    userProfile?: UserProfile | null;
 }
 
 // Utility: Round to 2 decimal places
@@ -24,6 +29,8 @@ export const LineItemRow: React.FC<LineItemRowProps> = ({
     onUpdate,
     onRemove,
     onAssigneeBlur,
+    friends = [],
+    userProfile = null,
 }) => {
     const splitMode = lineItem.splitMode || 'equal';
     const percentages = lineItem.assigneePercentages || {};
@@ -96,13 +103,13 @@ export const LineItemRow: React.FC<LineItemRowProps> = ({
                     placeholder="Qty"
                 />
 
-                <input
-                    className="w-48 border p-1 rounded"
-                    type="text"
+                <AssigneeInput
                     value={lineItem.assigneesText ?? assignees.join(', ')}
-                    onChange={(e) => onUpdate(index, 'assignees', e.target.value)}
+                    onChange={(value) => onUpdate(index, 'assignees', value)}
                     onBlur={() => onAssigneeBlur(index)}
                     placeholder="Assignees (comma-separated)"
+                    friends={friends}
+                    userProfile={userProfile}
                 />
 
                 <button

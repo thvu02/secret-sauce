@@ -38,8 +38,10 @@ export const ReceiptFields: React.FC<ReceiptFieldsProps> = ({ receipt, onUpdate 
                 <label className="block text-sm font-medium mb-1">Date</label>
                 <input
                     className="w-full border p-2 rounded"
+                    type="date"
                     value={receipt.receiptDate || ''}
                     onChange={(e) => onUpdate('receiptDate', e.target.value)}
+                    placeholder="YYYY-MM-DD"
                 />
             </div>
 

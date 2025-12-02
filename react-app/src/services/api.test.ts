@@ -475,8 +475,8 @@ describe('friendApi', () => {
   describe('getAllFriends', () => {
     it('should fetch all friends successfully', async () => {
       const mockFriends: Friend[] = [
-        { id: '1', firstName: 'Alice', lastName: 'Smith' },
-        { id: '2', firstName: 'Bob', lastName: 'Jones' },
+        { id: '1', displayName: 'Alice Smith' },
+        { id: '2', displayName: 'Bob Jones' },
       ];
 
       (global.fetch as any).mockResolvedValueOnce({
@@ -492,7 +492,7 @@ describe('friendApi', () => {
 
   describe('getFriend', () => {
     it('should fetch specific friend successfully', async () => {
-      const mockFriend: Friend = { id: '1', firstName: 'Alice', lastName: 'Smith' };
+      const mockFriend: Friend = { id: '1', displayName: 'Alice Smith' };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
@@ -507,7 +507,7 @@ describe('friendApi', () => {
 
   describe('createFriend', () => {
     it('should create friend successfully', async () => {
-      const newFriend: Friend = { firstName: 'Alice', lastName: 'Smith' };
+      const newFriend: Friend = { displayName: 'Alice Smith' };
       const createdFriend: Friend = { ...newFriend, id: '1' };
 
       (global.fetch as any).mockResolvedValueOnce({
@@ -530,7 +530,7 @@ describe('friendApi', () => {
 
   describe('updateFriend', () => {
     it('should update friend successfully', async () => {
-      const updatedFriend: Friend = { id: '1', firstName: 'Alice', lastName: 'Updated' };
+      const updatedFriend: Friend = { id: '1', displayName: 'Alice Updated' };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,

@@ -10,11 +10,11 @@ interface FriendFormProps {
 
 export default function FriendForm({ onSubmit, onCancel, initialData, isEditing = false }: FriendFormProps) {
   const [formData, setFormData] = useState<Friend>({
-    firstName: initialData?.firstName || '',
-    lastName: initialData?.lastName || '',
+    displayName: initialData?.displayName || '',
     venmoHandle: initialData?.venmoHandle || '',
     zellePhoneNumber: initialData?.zellePhoneNumber || '',
     paypalHandle: initialData?.paypalHandle || '',
+    contactEmail: initialData?.contactEmail || '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,8 +29,8 @@ export default function FriendForm({ onSubmit, onCancel, initialData, isEditing 
     e.preventDefault();
 
     // Validation
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      alert('First name and last name are required');
+    if (!formData.displayName.trim()) {
+      alert('Display name is required');
       return;
     }
 
@@ -43,40 +43,39 @@ export default function FriendForm({ onSubmit, onCancel, initialData, isEditing 
         {isEditing ? 'Edit Friend' : 'Add New Friend'}
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-            First Name *
-          </label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-            Last Name *
-          </label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div>
+        <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+          Display Name *
+        </label>
+        <input
+          type="text"
+          id="displayName"
+          name="displayName"
+          value={formData.displayName}
+          onChange={handleChange}
+          placeholder="John Doe"
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-gray-700">Payment Information</h4>
+        <h4 className="text-sm font-medium text-gray-700">Contact & Payment Information</h4>
+
+        <div>
+          <label htmlFor="contactEmail" className="block text-sm text-gray-600 mb-1">
+            Contact Email
+          </label>
+          <input
+            type="email"
+            id="contactEmail"
+            name="contactEmail"
+            value={formData.contactEmail}
+            onChange={handleChange}
+            placeholder="friend@example.com"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
         <div>
           <label htmlFor="venmoHandle" className="block text-sm text-gray-600 mb-1">

@@ -30,8 +30,8 @@ describe('FriendForm', () => {
         it('should render all input fields', () => {
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
-            expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/contact email/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/venmo handle/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/zelle phone number/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/paypal handle/i)).toBeInTheDocument();
@@ -53,42 +53,42 @@ describe('FriendForm', () => {
     describe('initial data', () => {
         it('should populate form with initial data', () => {
             const initialData: Friend = {
-                firstName: 'John',
-                lastName: 'Doe',
+                displayName: 'John Doe',
+                contactEmail: 'john@example.com',
                 venmoHandle: '@johndoe',
                 zellePhoneNumber: '555-1234',
-                paypalHandle: 'john@example.com',
+                paypalHandle: 'john@paypal.com',
             };
 
             render(<FriendForm onSubmit={mockOnSubmit} initialData={initialData} />);
 
-            expect(screen.getByDisplayValue('John')).toBeInTheDocument();
-            expect(screen.getByDisplayValue('Doe')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('John Doe')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('john@example.com')).toBeInTheDocument();
             expect(screen.getByDisplayValue('@johndoe')).toBeInTheDocument();
             expect(screen.getByDisplayValue('555-1234')).toBeInTheDocument();
-            expect(screen.getByDisplayValue('john@example.com')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('john@paypal.com')).toBeInTheDocument();
         });
     });
 
     describe('form interactions', () => {
-        it('should update first name field', async () => {
+        it('should update display name field', async () => {
             const user = userEvent.setup();
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            const firstNameInput = screen.getByLabelText(/first name/i);
-            await user.type(firstNameInput, 'Alice');
+            const displayNameInput = screen.getByLabelText(/display name/i);
+            await user.type(displayNameInput, 'Alice Smith');
 
-            expect(firstNameInput).toHaveValue('Alice');
+            expect(displayNameInput).toHaveValue('Alice Smith');
         });
 
-        it('should update last name field', async () => {
+        it('should update contact email field', async () => {
             const user = userEvent.setup();
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            const lastNameInput = screen.getByLabelText(/last name/i);
-            await user.type(lastNameInput, 'Smith');
+            const emailInput = screen.getByLabelText(/contact email/i);
+            await user.type(emailInput, 'alice@example.com');
 
-            expect(lastNameInput).toHaveValue('Smith');
+            expect(emailInput).toHaveValue('alice@example.com');
         });
 
         it('should update payment information fields', async () => {
@@ -114,81 +114,48 @@ describe('FriendForm', () => {
             const user = userEvent.setup();
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            await user.type(screen.getByLabelText(/first name/i), 'Alice');
-            await user.type(screen.getByLabelText(/last name/i), 'Smith');
+            await user.type(screen.getByLabelText(/display name/i), 'Alice Smith');
+            await user.type(screen.getByLabelText(/contact email/i), 'alice@example.com');
             await user.type(screen.getByLabelText(/venmo handle/i), '@alice');
 
             await user.click(screen.getByRole('button', { name: /add friend/i }));
 
             expect(mockOnSubmit).toHaveBeenCalledTimes(1);
             expect(mockOnSubmit).toHaveBeenCalledWith({
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: 'alice@example.com',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '',
                 paypalHandle: '',
             });
         });
 
-        it('should not submit when first name is missing', async () => {
+        it('should not submit when display name is missing', async () => {
             const user = userEvent.setup();
 
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            const firstNameInput = screen.getByLabelText(/first name/i);
-            const lastNameInput = screen.getByLabelText(/last name/i);
+            const displayNameInput = screen.getByLabelText(/display name/i);
+            const emailInput = screen.getByLabelText(/contact email/i);
 
-            await user.type(lastNameInput, 'Smith');
+            await user.type(emailInput, 'test@example.com');
 
-            // Check that first name input is required
-            expect(firstNameInput).toBeRequired();
+            // Check that display name input is required
+            expect(displayNameInput).toBeRequired();
             expect(mockOnSubmit).not.toHaveBeenCalled();
         });
 
-        it('should not submit when last name is missing', async () => {
-            const user = userEvent.setup();
-
-            render(<FriendForm onSubmit={mockOnSubmit} />);
-
-            const firstNameInput = screen.getByLabelText(/first name/i);
-            const lastNameInput = screen.getByLabelText(/last name/i);
-
-            await user.type(firstNameInput, 'Alice');
-
-            // Check that last name input is required
-            expect(lastNameInput).toBeRequired();
-            expect(mockOnSubmit).not.toHaveBeenCalled();
-        });
-
-        it('should trim whitespace from names', async () => {
+        it('should allow submission with only display name', async () => {
             const user = userEvent.setup();
             render(<FriendForm onSubmit={mockOnSubmit} />);
 
-            await user.type(screen.getByLabelText(/first name/i), '  Alice  ');
-            await user.type(screen.getByLabelText(/last name/i), '  Smith  ');
-
-            await user.click(screen.getByRole('button', { name: /add friend/i }));
-
-            expect(mockOnSubmit).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    firstName: '  Alice  ',
-                    lastName: '  Smith  ',
-                })
-            );
-        });
-
-        it('should allow submission with only required fields', async () => {
-            const user = userEvent.setup();
-            render(<FriendForm onSubmit={mockOnSubmit} />);
-
-            await user.type(screen.getByLabelText(/first name/i), 'Alice');
-            await user.type(screen.getByLabelText(/last name/i), 'Smith');
+            await user.type(screen.getByLabelText(/display name/i), 'Alice Smith');
 
             await user.click(screen.getByRole('button', { name: /add friend/i }));
 
             expect(mockOnSubmit).toHaveBeenCalledWith({
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: '',

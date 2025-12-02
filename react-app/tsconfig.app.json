@@ -24,5 +24,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "src/frontend/components/Map.tsx"]
+  "include": ["src", "src/frontend/components/Map.tsx"],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/test-setup.ts",
+    "**/test/**"
+  ]
 }

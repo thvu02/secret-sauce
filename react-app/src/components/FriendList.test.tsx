@@ -33,16 +33,16 @@ describe('FriendList', () => {
         const mockFriends: Friend[] = [
             {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: 'alice@example.com',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '555-1111',
-                paypalHandle: 'alice@example.com',
+                paypalHandle: 'alice@paypal.com',
             },
             {
                 id: '2',
-                firstName: 'Bob',
-                lastName: 'Jones',
+                displayName: 'Bob Jones',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -65,7 +65,7 @@ describe('FriendList', () => {
 
             expect(screen.getByText('@alice')).toBeInTheDocument();
             expect(screen.getByText('555-1111')).toBeInTheDocument();
-            expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+            expect(screen.getByText('alice@paypal.com')).toBeInTheDocument();
         });
 
         it('should display no payment information message when not available', () => {
@@ -100,11 +100,11 @@ describe('FriendList', () => {
     describe('edit functionality', () => {
         const mockFriend: Friend = {
             id: '1',
-            firstName: 'Alice',
-            lastName: 'Smith',
+            displayName: 'Alice Smith',
+            contactEmail: 'alice@example.com',
             venmoHandle: '@alice',
             zellePhoneNumber: '555-1111',
-            paypalHandle: 'alice@example.com',
+            paypalHandle: 'alice@paypal.com',
         };
 
         it('should call onEdit with friend data when edit is clicked', async () => {
@@ -128,11 +128,11 @@ describe('FriendList', () => {
     describe('delete functionality', () => {
         const mockFriend: Friend = {
             id: '123',
-            firstName: 'Alice',
-            lastName: 'Smith',
+            displayName: 'Alice Smith',
+            contactEmail: 'alice@example.com',
             venmoHandle: '@alice',
             zellePhoneNumber: '555-1111',
-            paypalHandle: 'alice@example.com',
+            paypalHandle: 'alice@paypal.com',
         };
 
         it('should show confirmation dialog when delete is clicked', async () => {
@@ -203,8 +203,8 @@ describe('FriendList', () => {
         it('should show only venmo when only venmo is provided', () => {
             const friend: Friend = {
                 id: '1',
-                firstName: 'Alice',
-                lastName: 'Smith',
+                displayName: 'Alice Smith',
+                contactEmail: '',
                 venmoHandle: '@alice',
                 zellePhoneNumber: '',
                 paypalHandle: '',
@@ -223,8 +223,8 @@ describe('FriendList', () => {
         it('should show only zelle when only zelle is provided', () => {
             const friend: Friend = {
                 id: '1',
-                firstName: 'Bob',
-                lastName: 'Jones',
+                displayName: 'Bob Jones',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '555-9999',
                 paypalHandle: '',
@@ -243,8 +243,8 @@ describe('FriendList', () => {
         it('should show only paypal when only paypal is provided', () => {
             const friend: Friend = {
                 id: '1',
-                firstName: 'Charlie',
-                lastName: 'Brown',
+                displayName: 'Charlie Brown',
+                contactEmail: '',
                 venmoHandle: '',
                 zellePhoneNumber: '',
                 paypalHandle: 'charlie@example.com',

@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Navbar, FileUploadSection, ReceiptFields, LineItemsSection } from '../components';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useReceipt } from '../hooks/useReceipt';
-import { receiptApi, ApiError } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { receiptApi, friendApi, userProfileApi, ApiError } from '../services/api';
 import { normalizeReceiptLineItems } from '../utils/receiptCalculations';
 import type { Receipt } from '../types';
+import type { Friend } from '../types/friend';
+import type { UserProfile } from '../types/userProfile';
 
 export const Home: React.FC = () => {
     const { file, previewUrl, handleFileChange } = useFileUpload();
+    const { isAuthenticated } = useAuth();
     const {
         receipt,
         setReceipt,
@@ -19,6 +23,8 @@ export const Home: React.FC = () => {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
     useEffect(() => {
         document.title = 'Receipt OCR - Home';
@@ -48,6 +54,32 @@ export const Home: React.FC = () => {
         };
         setReceipt(emptyReceipt);
     }, [setReceipt]);
+
+    // Fetch friends and user profile for authenticated users
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (!isAuthenticated) {
+                setFriends([]);
+                setUserProfile(null);
+                return;
+            }
+
+            try {
+                const [userFriends, profile] = await Promise.all([
+                    friendApi.getAllFriends(),
+                    userProfileApi.getProfile()
+                ]);
+                setFriends(userFriends);
+                setUserProfile(profile);
+            } catch (error) {
+                console.error('Failed to fetch user data:', error);
+                setFriends([]);
+                setUserProfile(null);
+            }
+        };
+
+        fetchUserData();
+    }, [isAuthenticated]);
 
     const handleUpload = async () => {
         if (!file) {
@@ -176,6 +208,8 @@ export const Home: React.FC = () => {
                                     onAdd={addLineItem}
                                     onRemove={removeLineItem}
                                     onAssigneeBlur={handleAssigneeBlur}
+                                    friends={friends}
+                                    userProfile={userProfile}
                                 />
 
                                 <div className="mt-4 flex gap-2">

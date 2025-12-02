@@ -14,6 +14,17 @@ vi.mock('../services/api', () => ({
     saveReceipt: vi.fn(),
     generateReport: vi.fn(),
   },
+  friendApi: {
+    getAllFriends: vi.fn().mockResolvedValue([]),
+    getFriend: vi.fn(),
+    createFriend: vi.fn(),
+    updateFriend: vi.fn(),
+    deleteFriend: vi.fn(),
+  },
+  userProfileApi: {
+    getProfile: vi.fn().mockResolvedValue({ displayName: 'Test User' }),
+    saveProfile: vi.fn(),
+  },
   ApiError: class ApiError extends Error {
     status?: number;
     constructor(message: string, status?: number) {
