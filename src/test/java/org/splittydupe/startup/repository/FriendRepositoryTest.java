@@ -61,8 +61,7 @@ class FriendRepositoryTest {
         testFriend = Friend.builder()
                 .id("friend-123")
                 .userId("user-456")
-                .firstName("John")
-                .lastName("Doe")
+                .displayName("John Doe")
                 .venmoHandle("@johndoe")
                 .build();
     }
@@ -87,8 +86,7 @@ class FriendRepositoryTest {
     void shouldGenerateIdWhenSavingFriendWithoutId() throws Exception {
         Friend friendWithoutId = Friend.builder()
                 .userId("user-456")
-                .firstName("Jane")
-                .lastName("Smith")
+                .displayName("Jane Smith")
                 .build();
 
         when(firestore.collection("friends")).thenReturn(collectionReference);
@@ -117,7 +115,7 @@ class FriendRepositoryTest {
 
         assertTrue(result.isPresent());
         assertEquals(testFriend.getId(), result.get().getId());
-        assertEquals("John", result.get().getFirstName());
+        assertEquals("John Doe", result.get().getDisplayName());
     }
 
     @Test
@@ -151,7 +149,7 @@ class FriendRepositoryTest {
 
         assertNotNull(results);
         assertEquals(1, results.size());
-        assertEquals("John", results.get(0).getFirstName());
+        assertEquals("John Doe", results.get(0).getDisplayName());
     }
 
     @Test
@@ -202,8 +200,7 @@ class FriendRepositoryTest {
     void shouldThrowExceptionWhenUpdatingFriendWithoutId() {
         Friend friendWithoutId = Friend.builder()
                 .userId("user-456")
-                .firstName("Jane")
-                .lastName("Smith")
+                .displayName("Jane Smith")
                 .build();
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {

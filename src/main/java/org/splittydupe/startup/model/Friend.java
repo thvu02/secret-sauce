@@ -14,13 +14,13 @@ public class Friend {
 
     private String userId; // ID of the user who owns this friend entry
 
-    private String firstName;
-
-    private String lastName;
+    private String displayName;
 
     private String venmoHandle;
 
     private String zellePhoneNumber;
-    
+
     private String paypalHandle;
+
+    private String contactEmail;
 }
