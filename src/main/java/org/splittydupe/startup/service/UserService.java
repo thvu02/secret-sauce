@@ -4,6 +4,7 @@ import com.google.cloud.Timestamp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.splittydupe.startup.model.User;
+import org.splittydupe.startup.model.UserProfile;
 import org.splittydupe.startup.model.VerificationToken;
 import org.splittydupe.startup.repository.UserRepository;
 import org.splittydupe.startup.repository.VerificationTokenRepository;
@@ -24,8 +25,9 @@ public class UserService {
     private final VerificationTokenRepository tokenRepository;
     private final EmailService emailService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final UserProfileService userProfileService;
 
-    public User registerUser(String email, String password) {
+    public User registerUser(String email, String password, String displayName) {
         Optional<User> existingUser = userRepository.findByEmail(email);
         if (existingUser.isPresent()) {
             throw new RuntimeException("User with this email already exists");
@@ -45,6 +47,13 @@ public class UserService {
 
         userRepository.save(user);
         log.info("User registered successfully: {}", email);
+
+        UserProfile profile = UserProfile.builder()
+                .userId(user.getUid())
+                .displayName(displayName)
+                .build();
+        userProfileService.saveProfile(profile);
+        log.info("User profile created with displayName: {}", displayName);
 
         String token = createVerificationToken(user, "email_verification");
         emailService.sendVerificationEmail(email, token);

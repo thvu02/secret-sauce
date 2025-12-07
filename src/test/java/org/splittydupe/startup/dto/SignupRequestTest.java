@@ -29,19 +29,22 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("test@example.com")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         assertEquals("test@example.com", request.getEmail());
         assertEquals("password123", request.getPassword());
+        assertEquals("Test User", request.getDisplayName());
     }
 
     @Test
     @DisplayName("Should create SignupRequest with all-args constructor")
     void shouldCreateSignupRequestWithAllArgsConstructor() {
-        SignupRequest request = new SignupRequest("user@example.com", "mypassword");
+        SignupRequest request = new SignupRequest("user@example.com", "mypassword", "Test User");
 
         assertEquals("user@example.com", request.getEmail());
         assertEquals("mypassword", request.getPassword());
+        assertEquals("Test User", request.getDisplayName());
     }
 
     @Test
@@ -50,9 +53,11 @@ class SignupRequestTest {
         SignupRequest request = new SignupRequest();
         request.setEmail("another@example.com");
         request.setPassword("pass456789");
+        request.setDisplayName("Another User");
 
         assertEquals("another@example.com", request.getEmail());
         assertEquals("pass456789", request.getPassword());
+        assertEquals("Another User", request.getDisplayName());
     }
 
     @Test
@@ -61,6 +66,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("valid@example.com")
                 .password("validpassword123")
+                .displayName("Valid User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -74,6 +80,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -89,6 +96,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("not-an-email")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -104,6 +112,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("test@example.com")
                 .password("")
+                .displayName("Test User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -119,6 +128,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("test@example.com")
                 .password("short")
+                .displayName("Test User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -134,6 +144,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("test@example.com")
                 .password("password")
+                .displayName("Test User")
                 .build();
 
         Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
@@ -147,16 +158,19 @@ class SignupRequestTest {
         SignupRequest request1 = SignupRequest.builder()
                 .email("test@example.com")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         SignupRequest request2 = SignupRequest.builder()
                 .email("test@example.com")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         SignupRequest request3 = SignupRequest.builder()
                 .email("other@example.com")
                 .password("different123")
+                .displayName("Other User")
                 .build();
 
         assertEquals(request1, request2);
@@ -170,6 +184,7 @@ class SignupRequestTest {
         SignupRequest request = SignupRequest.builder()
                 .email("test@example.com")
                 .password("password123")
+                .displayName("Test User")
                 .build();
 
         String toString = request.toString();

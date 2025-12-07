@@ -9,6 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.splittydupe.startup.model.User;
+import org.splittydupe.startup.model.UserProfile;
 import org.splittydupe.startup.model.VerificationToken;
 import org.splittydupe.startup.repository.UserRepository;
 import org.splittydupe.startup.repository.VerificationTokenRepository;
@@ -37,6 +38,9 @@ class UserServiceTest {
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Mock
+    private UserProfileService userProfileService;
+
     @InjectMocks
     private UserService userService;
 
@@ -61,13 +65,19 @@ class UserServiceTest {
         String email = "newuser@example.com";
         String password = "password123";
 
+        UserProfile testProfile = UserProfile.builder()
+                .userId("test-user-id")
+                .displayName("Test User")
+                .build();
+
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
         when(passwordEncoder.encode(password)).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(true);
         when(tokenRepository.save(any(VerificationToken.class))).thenReturn(true);
+        when(userProfileService.saveProfile(any(UserProfile.class))).thenReturn(testProfile);
         doNothing().when(emailService).sendVerificationEmail(anyString(), anyString());
 
-        User result = userService.registerUser(email, password);
+        User result = userService.registerUser(email, password, "Test User");
 
         assertNotNull(result);
         assertEquals(email, result.getEmail());
@@ -85,7 +95,7 @@ class UserServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            userService.registerUser(email, "password");
+            userService.registerUser(email, "password", "Test User");
         });
 
         assertTrue(exception.getMessage().contains("already exists"));
