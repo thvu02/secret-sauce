@@ -14,7 +14,7 @@ interface AuthContextType {
     isLoading: boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<void>;
-    signup: (email: string, password: string) => Promise<AuthResponse>;
+    signup: (email: string, password: string, displayName: string) => Promise<AuthResponse>;
     logout: () => void;
     refreshUser: () => Promise<void>;
 }
@@ -83,8 +83,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userData));
     };
 
-    const signup = async (email: string, password: string): Promise<AuthResponse> => {
-        const response = await authApi.signup({ email, password });
+    const signup = async (email: string, password: string, displayName: string): Promise<AuthResponse> => {
+        const response = await authApi.signup({ email, password, displayName });
         return response;
     };
 

@@ -53,6 +53,7 @@ describe('Signup', () => {
 
             expect(screen.getByRole('heading', { name: /create your account/i })).toBeInTheDocument();
             expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /sign up/i })).toBeInTheDocument();
@@ -102,11 +103,26 @@ describe('Signup', () => {
     });
 
     describe('validation', () => {
+        it('should show error when displayName is too short', async () => {
+            const user = userEvent.setup();
+            renderSignup(authValue);
+
+            await user.type(screen.getByLabelText(/email address/i), 'test@example.com');
+            await user.type(screen.getByLabelText(/display name/i), 'A');
+            await user.type(screen.getByLabelText(/^password$/i), 'password123');
+            await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+            await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+            expect(screen.getByText('Display name must be at least 2 characters long')).toBeInTheDocument();
+            expect(mockSignup).not.toHaveBeenCalled();
+        }, 15000);
+
         it('should show error when password is too short', async () => {
             const user = userEvent.setup();
             renderSignup(authValue);
 
             await user.type(screen.getByLabelText(/email address/i), 'test@example.com');
+            await user.type(screen.getByLabelText(/display name/i), 'Test User');
             await user.type(screen.getByLabelText(/^password$/i), 'short');
             await user.type(screen.getByLabelText(/confirm password/i), 'short');
             await user.click(screen.getByRole('button', { name: /sign up/i }));
@@ -120,6 +136,7 @@ describe('Signup', () => {
             renderSignup(authValue);
 
             await user.type(screen.getByLabelText(/email address/i), 'test@example.com');
+            await user.type(screen.getByLabelText(/display name/i), 'Test User');
             await user.type(screen.getByLabelText(/^password$/i), 'password123');
             await user.type(screen.getByLabelText(/confirm password/i), 'differentpass');
             await user.click(screen.getByRole('button', { name: /sign up/i }));
@@ -136,12 +153,13 @@ describe('Signup', () => {
             renderSignup(authValue);
 
             await user.type(screen.getByLabelText(/email address/i), 'test@example.com');
+            await user.type(screen.getByLabelText(/display name/i), 'Test User');
             await user.type(screen.getByLabelText(/^password$/i), 'password123');
             await user.type(screen.getByLabelText(/confirm password/i), 'password123');
             await user.click(screen.getByRole('button', { name: /sign up/i }));
 
             await waitFor(() => {
-                expect(mockSignup).toHaveBeenCalledWith('test@example.com', 'password123');
+                expect(mockSignup).toHaveBeenCalledWith('test@example.com', 'password123', 'Test User');
             });
         }, 15000);
 
@@ -151,6 +169,7 @@ describe('Signup', () => {
             renderSignup(authValue);
 
             await user.type(screen.getByLabelText(/email address/i), 'test@example.com');
+            await user.type(screen.getByLabelText(/display name/i), 'Test User');
             await user.type(screen.getByLabelText(/^password$/i), 'password123');
             await user.type(screen.getByLabelText(/confirm password/i), 'password123');
             await user.click(screen.getByRole('button', { name: /sign up/i }));
@@ -298,6 +317,7 @@ describe('Signup', () => {
             renderSignup(authValue);
 
             expect(screen.getByLabelText(/email address/i)).toHaveAttribute('type', 'email');
+            expect(screen.getByLabelText(/display name/i)).toHaveAttribute('type', 'text');
             expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('type', 'password');
             expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute('type', 'password');
         });
@@ -306,6 +326,7 @@ describe('Signup', () => {
             renderSignup(authValue);
 
             expect(screen.getByLabelText(/email address/i)).toBeRequired();
+            expect(screen.getByLabelText(/display name/i)).toBeRequired();
             expect(screen.getByLabelText(/^password$/i)).toBeRequired();
             expect(screen.getByLabelText(/confirm password/i)).toBeRequired();
         });

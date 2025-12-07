@@ -109,6 +109,7 @@ export interface LoginRequest {
 export interface SignupRequest {
     email: string;
     password: string;
+    displayName: string;
 }
 
 export interface AuthResponse {

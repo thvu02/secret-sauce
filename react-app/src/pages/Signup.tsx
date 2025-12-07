@@ -8,6 +8,7 @@ export const Signup: React.FC = () => {
     const { signup } = useAuth();
 
     const [email, setEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,6 +21,16 @@ export const Signup: React.FC = () => {
         setSuccess(false);
 
         // Validation
+        if (!displayName.trim()) {
+            setError('Display name is required');
+            return;
+        }
+
+        if (displayName.trim().length < 2) {
+            setError('Display name must be at least 2 characters long');
+            return;
+        }
+
         if (password.length < 8) {
             setError('Password must be at least 8 characters long');
             return;
@@ -33,7 +44,7 @@ export const Signup: React.FC = () => {
         setIsLoading(true);
 
         try {
-            await signup(email, password);
+            await signup(email, password, displayName.trim());
             setSuccess(true);
 
             // Redirect to login after 3 seconds
@@ -128,6 +139,23 @@ export const Signup: React.FC = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 placeholder="you@example.com"
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
+                                Display Name
+                            </label>
+                            <input
+                                id="displayName"
+                                name="displayName"
+                                type="text"
+                                autoComplete="name"
+                                required
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                placeholder="Your name"
                             />
                         </div>
 
