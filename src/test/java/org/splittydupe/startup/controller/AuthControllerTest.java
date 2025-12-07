@@ -51,6 +51,7 @@ class AuthControllerTest {
         signupRequest = new SignupRequest();
         signupRequest.setEmail(TestConfig.TEST_USER_EMAIL);
         signupRequest.setPassword("password123");
+        signupRequest.setDisplayName("Test User");
 
         loginRequest = new LoginRequest();
         loginRequest.setEmail(TestConfig.TEST_USER_EMAIL);
@@ -61,7 +62,7 @@ class AuthControllerTest {
     @WithMockUser
     @DisplayName("Should register user successfully")
     void shouldRegisterUserSuccessfully() throws Exception {
-        when(userService.registerUser(anyString(), anyString())).thenReturn(testUser);
+        when(userService.registerUser(anyString(), anyString(), anyString())).thenReturn(testUser);
 
         mockMvc.perform(post("/api/auth/signup")
                         .with(csrf())
@@ -73,14 +74,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.emailVerified").value(false))
                 .andExpect(jsonPath("$.message").exists());
 
-        verify(userService, times(1)).registerUser(signupRequest.getEmail(), signupRequest.getPassword());
+        verify(userService, times(1)).registerUser(signupRequest.getEmail(), signupRequest.getPassword(), signupRequest.getDisplayName());
     }
 
     @Test
     @WithMockUser
     @DisplayName("Should return 400 when signup fails")
     void shouldReturn400WhenSignupFails() throws Exception {
-        when(userService.registerUser(anyString(), anyString()))
+        when(userService.registerUser(anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("Email already exists"));
 
         mockMvc.perform(post("/api/auth/signup")
@@ -91,7 +92,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error").value("Signup failed"))
                 .andExpect(jsonPath("$.message").exists());
 
-        verify(userService, times(1)).registerUser(anyString(), anyString());
+        verify(userService, times(1)).registerUser(anyString(), anyString(), anyString());
     }
 
     @Test

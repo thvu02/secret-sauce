@@ -47,8 +47,7 @@ class FriendControllerTest {
         testFriend = Friend.builder()
                 .id("friend-123")
                 .userId("user-123")
-                .firstName("John")
-                .lastName("Doe")
+                .displayName("John Doe")
                 .build();
     }
 
@@ -62,8 +61,7 @@ class FriendControllerTest {
         mockMvc.perform(get("/api/friends"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].firstName").value("John"))
-                .andExpect(jsonPath("$[0].lastName").value("Doe"));
+                .andExpect(jsonPath("$[0].displayName").value("John Doe"));
 
         verify(friendService, times(1)).getFriendsByUserId("user-123");
     }
@@ -91,8 +89,7 @@ class FriendControllerTest {
         mockMvc.perform(get("/api/friends/friend-123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("friend-123"))
-                .andExpect(jsonPath("$.firstName").value("John"))
-                .andExpect(jsonPath("$.lastName").value("Doe"));
+                .andExpect(jsonPath("$.displayName").value("John Doe"));
 
         verify(friendService, times(1)).getFriendById("friend-123");
     }
@@ -116,15 +113,13 @@ class FriendControllerTest {
     @DisplayName("Should create friend successfully")
     void shouldCreateFriendSuccessfully() throws Exception {
         Friend newFriend = Friend.builder()
-                .firstName("Jane")
-                .lastName("Doe")
+                .displayName("Jane Doe")
                 .build();
 
         Friend savedFriend = Friend.builder()
                 .id("friend-456")
                 .userId("user-123")
-                .firstName("Jane")
-                .lastName("Doe")
+                .displayName("Jane Doe")
                 .build();
 
         when(friendService.createFriend(any(Friend.class))).thenReturn(savedFriend);
@@ -136,8 +131,7 @@ class FriendControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("friend-456"))
                 .andExpect(jsonPath("$.userId").value("user-123"))
-                .andExpect(jsonPath("$.firstName").value("Jane"))
-                .andExpect(jsonPath("$.lastName").value("Doe"));
+                .andExpect(jsonPath("$.displayName").value("Jane Doe"));
 
         verify(friendService, times(1)).createFriend(any(Friend.class));
     }
@@ -165,8 +159,7 @@ class FriendControllerTest {
     void shouldUpdateFriendSuccessfully() throws Exception {
         Friend updatedFriend = Friend.builder()
                 .id("friend-123")
-                .firstName("John")
-                .lastName("Updated")
+                .displayName("John Updated")
                 .build();
 
         when(friendService.updateFriend(eq("friend-123"), any(Friend.class)))
@@ -177,8 +170,7 @@ class FriendControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updatedFriend)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.firstName").value("John"))
-                .andExpect(jsonPath("$.lastName").value("Updated"));
+                .andExpect(jsonPath("$.displayName").value("John Updated"));
 
         verify(friendService, times(1)).updateFriend(eq("friend-123"), any(Friend.class));
     }
