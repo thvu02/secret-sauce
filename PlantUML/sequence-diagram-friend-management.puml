@@ -37,7 +37,7 @@ deactivate Repo
 Service --> Controller: List<Friend>
 deactivate Service
 
-Controller --> Frontend: 200 OK\n[{id, name, email, phone}, ...]
+Controller --> Frontend: 200 OK\n[{id, displayName, contactEmail, venmoHandle, zellePhoneNumber, paypalHandle}, ...]
 deactivate Controller
 
 Frontend -> Frontend: Update FriendList component
@@ -48,17 +48,19 @@ Frontend -> User: Display friends table
 User -> Frontend: Click "Add Friend"
 Frontend -> User: Show FriendForm dialog
 
-User -> Frontend: Enter friend details:\n- Name: "Alice"
-User -> Frontend: - Email: "alice@example.com"
-User -> Frontend: - Phone: "+1234567890"
+User -> Frontend: Enter friend details:\n- Display Name: "Alice Smith"
+User -> Frontend: - Contact Email: "alice@example.com"
+User -> Frontend: - Venmo Handle: "@alice"
+User -> Frontend: - Zelle Phone: "+1234567890"
+User -> Frontend: - PayPal Handle: "alice@paypal.com"
 User -> Frontend: Click "Save"
 
-Frontend -> Frontend: Validate form inputs
+Frontend -> Frontend: Validate form inputs\n(displayName required, must not match user's displayName)
 
 alt Validation fails
     Frontend -> User: Show validation errors
 else Validation passes
-    Frontend -> Controller: POST /api/friends\nAuthorization: Bearer <token>\n{name, email, phone}
+    Frontend -> Controller: POST /api/friends\nAuthorization: Bearer <token>\n{displayName, contactEmail, venmoHandle, zellePhoneNumber, paypalHandle}
     activate Controller
 
     Controller -> Auth: Get authenticated user
@@ -72,10 +74,19 @@ else Validation passes
     Controller -> Service: createFriend(friend)
     activate Service
 
-    Service -> Service: Validate friend data
+    participant "UserProfileService" as ProfileService
+
+    Service -> Service: Validate friend data\n(displayName not empty)
+
+    Service -> ProfileService: getProfileByUserId(userId)
+    activate ProfileService
+    ProfileService --> Service: Optional<UserProfile>
+    deactivate ProfileService
+
+    Service -> Service: Check friend displayName\n!= user displayName
 
     alt Validation fails
-        Service --> Controller: IllegalArgumentException
+        Service --> Controller: IllegalArgumentException\n"Friend displayName cannot match your own"
         Controller --> Frontend: 400 BAD REQUEST\n{error: "validation error"}
         Frontend -> User: Show error message
     else Validation succeeds
@@ -99,7 +110,7 @@ else Validation passes
         Service --> Controller: Friend
         deactivate Service
 
-        Controller --> Frontend: 201 CREATED\n{id, name, email, phone, ...}
+        Controller --> Frontend: 201 CREATED\n{id, displayName, contactEmail, venmoHandle, zellePhoneNumber, paypalHandle, ...}
         deactivate Controller
 
         Frontend -> Frontend: Add friend to local state
@@ -115,10 +126,11 @@ end
 User -> Frontend: Click "Edit" on friend row
 Frontend -> User: Show edit dialog with current values
 
-User -> Frontend: Modify name to "Alice Smith"
+User -> Frontend: Modify displayName to "Alice M. Smith"
+User -> Frontend: Modify contactEmail to "alice.smith@example.com"
 User -> Frontend: Click "Update"
 
-Frontend -> Controller: PUT /api/friends/friend_123\nAuthorization: Bearer <token>\n{name: "Alice Smith", email, phone}
+Frontend -> Controller: PUT /api/friends/friend_123\nAuthorization: Bearer <token>\n{displayName: "Alice M. Smith", contactEmail: "alice.smith@example.com", ...}
 activate Controller
 
 Controller -> Service: updateFriend("friend_123", updatedFriend)
@@ -142,7 +154,16 @@ else Friend found
     Repo --> Service: Optional.of(Friend)
     deactivate Repo
 
-    Service -> Service: Update friend fields:\n- name\n- email\n- phone
+    Service -> Service: Validate updated friend\n(displayName not empty)
+
+    Service -> ProfileService: getProfileByUserId(userId)
+    activate ProfileService
+    ProfileService --> Service: Optional<UserProfile>
+    deactivate ProfileService
+
+    Service -> Service: Check updated displayName\n!= user displayName
+
+    Service -> Service: Update friend fields:\n- displayName\n- contactEmail\n- venmoHandle\n- zellePhoneNumber\n- paypalHandle
 
     Service -> Service: Set updatedAt = now\n(keep createdAt unchanged)
 
@@ -160,7 +181,7 @@ else Friend found
     Service --> Controller: Friend
     deactivate Service
 
-    Controller --> Frontend: 200 OK\n{id, name: "Alice Smith", ...}
+    Controller --> Frontend: 200 OK\n{id, displayName: "Alice M. Smith", ...}
     deactivate Controller
 
     Frontend -> Frontend: Update friend in local state
@@ -190,18 +211,25 @@ Service --> Controller: Friends
 Controller --> Frontend: 200 OK [friends...]
 deactivate Controller
 
-Frontend -> Frontend: Populate assignee dropdown with friend names
-Frontend -> User: Show dropdown: ["Alice Smith", "Bob", "Charlie"]
+Frontend -> Controller: GET /api/user-profiles/me\nAuthorization: Bearer <token>
+activate Controller
+Controller -> ProfileService: getProfileByUserId(email)
+ProfileService --> Controller: UserProfile
+Controller --> Frontend: 200 OK {userId, displayName, ...}
+deactivate Controller
 
-User -> Frontend: Select "Alice Smith" and "Bob"
+Frontend -> Frontend: Populate assignee dropdown:\n[User's displayName, Friend displayNames...]
+Frontend -> User: Show dropdown:\n["Me (Alice M. Smith)", "Bob Johnson", "Charlie Brown"]
+
+User -> Frontend: Select "Me (Alice M. Smith)" and "Bob Johnson"
 Frontend -> Frontend: Add to lineItem.assignees
 
-Frontend -> User: Show assigned: Alice Smith, Bob
+Frontend -> User: Show assigned: Me (Alice M. Smith), Bob Johnson
 
 == Delete Friend ==
 
 User -> Frontend: Click "Delete" on friend row
-Frontend -> User: Show confirmation dialog\n"Delete Alice Smith?"
+Frontend -> User: Show confirmation dialog\n"Delete Alice M. Smith?"
 
 User -> Frontend: Click "Confirm"
 

@@ -121,6 +121,11 @@ else Authorized
     deactivate PDFBox
 
     loop For each person in personExpenses
+        note right
+            Person is identified by displayName
+            (e.g., "Alice Smith", "Bob Johnson")
+        end note
+
         PDF -> PDF: Check if page space sufficient
         alt Need new page
             PDF -> PDFBox: Close current content stream
@@ -137,14 +142,14 @@ else Authorized
             PDF -> PDF: Reset Y position
         end
 
-        PDF -> PDF: addPersonSection(stream, y, person, expense)
+        PDF -> PDF: addPersonSection(stream, y, displayName, expense)
 
-        PDF -> PDFBox: Write person name (Bold)
+        PDF -> PDFBox: Write person displayName (Bold)\ne.g., "Alice Smith"
         activate PDFBox
         deactivate PDFBox
 
-        loop For each line item
-            PDF -> PDFBox: Write item details
+        loop For each line item assigned to this person
+            PDF -> PDFBox: Write item details\n(name, price, split percentage)
             activate PDFBox
             deactivate PDFBox
         end

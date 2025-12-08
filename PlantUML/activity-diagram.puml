@@ -57,8 +57,14 @@ if (Valid image file?) then (yes)
     else (no)
     endif
 
-    :Assign line items to people;
-    :Select tax/tip distribution;
+    :Assign line items to people\nusing displayNames from\nuser profile and friends;
+    note right
+        Assignees selected from:
+        - User's own displayName
+        - Friend displayNames
+    end note
+
+    :Select tax/tip distribution\n(proportional or even split);
 
     if (User authenticated?) then (yes)
         :Receipt associated with userId;

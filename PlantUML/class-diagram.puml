@@ -43,6 +43,13 @@ package "Controller Layer"  {
         + getReceipt(receiptId: String, authHeader: String): ResponseEntity<?>
         + deleteReceipt(receiptId: String, authHeader: String): ResponseEntity<?>
     }
+
+    class UserProfileController {
+        - userProfileService: UserProfileService
+        - jwtService: JwtService
+        + getUserProfile(authentication: Authentication): ResponseEntity<?>
+        + saveUserProfile(profile: UserProfile, authentication: Authentication): ResponseEntity<?>
+    }
 }
 
 package "Service Layer"  {
@@ -69,12 +76,20 @@ package "Service Layer"  {
         - verificationTokenRepository: VerificationTokenRepository
         - emailService: EmailService
         - passwordEncoder: BCryptPasswordEncoder
-        + registerUser(email: String, password: String): User
+        - userProfileService: UserProfileService
+        + registerUser(email: String, password: String, displayName: String): User
         + authenticateUser(email: String, password: String): Optional<User>
         + verifyEmail(token: String): boolean
         + initiatePasswordReset(email: String): void
         + resetPassword(token: String, newPassword: String): boolean
         + getUserByEmail(email: String): Optional<User>
+    }
+
+    class UserProfileService {
+        - userProfileRepository: UserProfileRepository
+        + getProfileByUserId(userId: String): Optional<UserProfile>
+        + saveProfile(profile: UserProfile): UserProfile
+        + updateProfile(userId: String, profile: UserProfile): UserProfile
     }
 
     class JwtService {
@@ -96,11 +111,13 @@ package "Service Layer"  {
 
     class FriendService {
         - friendRepository: FriendRepository
+        - userProfileService: UserProfileService
         + getFriendsByUserId(userId: String): List<Friend>
         + getFriendById(id: String): Optional<Friend>
         + createFriend(friend: Friend): Friend
         + updateFriend(id: String, friend: Friend): Friend
         + deleteFriend(id: String): void
+        - validateFriend(friend: Friend): void
     }
 
     class PdfReportService {
@@ -155,6 +172,14 @@ package "Repository Layer"  {
         + delete(id: String): void
     }
 
+    class UserProfileRepository {
+        - firestore: Firestore
+        - collection: String
+        + save(profile: UserProfile): UserProfile
+        + findByUserId(userId: String): Optional<UserProfile>
+        + update(profile: UserProfile): UserProfile
+    }
+
     class VerificationTokenRepository {
         - firestore: Firestore
         - collection: String
@@ -207,9 +232,21 @@ package "Model Layer"  {
     class Friend {
         - id: String
         - userId: String
-        - name: String
-        - email: String
-        - phone: String
+        - displayName: String
+        - contactEmail: String
+        - venmoHandle: String
+        - zellePhoneNumber: String
+        - paypalHandle: String
+        - createdAt: Timestamp
+        - updatedAt: Timestamp
+    }
+
+    class UserProfile {
+        - userId: String
+        - displayName: String
+        - venmoHandle: String
+        - zellePhoneNumber: String
+        - paypalHandle: String
         - createdAt: Timestamp
         - updatedAt: Timestamp
     }
@@ -242,6 +279,7 @@ package "DTO Layer" {
     class SignupRequest {
         - email: String
         - password: String
+        - displayName: String
     }
 
     class AuthResponse {
@@ -293,13 +331,18 @@ PaymentController --> ReceiptService
 PaymentController --> JwtService
 UserDashboardController --> ReceiptService
 UserDashboardController --> JwtService
+UserProfileController --> UserProfileService
+UserProfileController --> JwtService
 
 ' Services -> Repositories
 ReceiptService --> IReceiptRepository
 UserService --> UserRepository
 UserService --> VerificationTokenRepository
 UserService --> EmailService
+UserService --> UserProfileService
 FriendService --> FriendRepository
+FriendService --> UserProfileService
+UserProfileService --> UserProfileRepository
 ReceiptCleanupScheduler --> IReceiptRepository
 
 ' Repositories -> Interface
@@ -310,6 +353,7 @@ ReceiptService ..> Receipt
 OcrService ..> Receipt
 OcrService ..> LineItem
 UserService ..> User
+UserProfileService ..> UserProfile
 FriendService ..> Friend
 PdfReportService ..> Receipt
 
@@ -325,6 +369,7 @@ ReceiptController ..> SaveReceiptResponse
 ' Repositories -> Models
 ReceiptRepository ..> Receipt
 UserRepository ..> User
+UserProfileRepository ..> UserProfile
 FriendRepository ..> Friend
 VerificationTokenRepository ..> VerificationToken
 

@@ -12,11 +12,11 @@ participant "ReceiptCleanupScheduler" as Scheduler
 == Payment Status Update ==
 
 User -> Frontend: View receipt with assignees
-Frontend -> User: Display payment status for each person
+Frontend -> User: Display payment status for each person:\n["Me (Alice Smith)", "Bob Johnson", "Charlie Brown"]
 
-User -> Frontend: Mark "Alice" as paid
+User -> Frontend: Mark "Alice Smith" as paid
 
-Frontend -> PayCtrl: PATCH /api/payments/receipts/receipt_123/assignees/Alice\nAuthorization: Bearer <token>\n{status: "paid"}
+Frontend -> PayCtrl: PATCH /api/payments/receipts/receipt_123/assignees/Alice Smith\nAuthorization: Bearer <token>\n{status: "paid"}
 activate PayCtrl
 
 PayCtrl -> PayCtrl: Validate status value
@@ -49,12 +49,12 @@ else Valid status
         PayCtrl --> Frontend: 403 FORBIDDEN\n"Access denied"
         Frontend -> User: Show error
     else Authorized
-        PayCtrl -> Service: updateAssigneePaymentStatus(\n"receipt_123", "Alice", "paid")
+        PayCtrl -> Service: updateAssigneePaymentStatus(\n"receipt_123", "Alice Smith", "paid")
         activate Service
 
-        Service -> Service: Update assigneePaymentStatus["Alice"] = "paid"
+        Service -> Service: Update assigneePaymentStatus["Alice Smith"] = "paid"
 
-        Service -> Service: Update payment status for all line items
+        Service -> Service: Update payment status for all line items\n(where "Alice Smith" is an assignee)
 
         Service -> Service: Calculate overall payment status
 
@@ -90,14 +90,14 @@ else Valid status
 
         Frontend -> Frontend: Update UI with new payment status
 
-        Frontend -> User: Show "Alice marked as paid"
+        Frontend -> User: Show "Alice Smith marked as paid"
         Frontend -> User: Update payment status indicator
 
         alt All assignees paid
             Frontend -> User: Show "Receipt fully paid ✓"
             Frontend -> User: Highlight with green badge
         else Some paid
-            Frontend -> User: Show "Partially paid (2/3)"
+            Frontend -> User: Show "Partially paid (2/3)"\nAlice Smith: ✓, Bob Johnson: ✓, Charlie Brown: ⏳
             Frontend -> User: Highlight with yellow badge
         else None paid
             Frontend -> User: Show "Pending payment"

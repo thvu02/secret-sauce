@@ -15,13 +15,13 @@ participant "SMTP Server" as SMTP
 User -> Frontend: Navigate to /signup
 Frontend -> User: Display signup form
 
-User -> Frontend: Enter email & password
+User -> Frontend: Enter email, password & display name
 User -> Frontend: Click "Sign Up"
 
-Frontend -> Controller: POST /api/auth/signup\n{email, password}
+Frontend -> Controller: POST /api/auth/signup\n{email, password, displayName}
 activate Controller
 
-Controller -> Service: registerUser(email, password)
+Controller -> Service: registerUser(email, password, displayName)
 activate Service
 
 Service -> UserRepo: findByEmail(email)
@@ -42,6 +42,24 @@ UserRepo -> DB: Save user document
 DB --> UserRepo: Success
 UserRepo --> Service: User saved
 deactivate UserRepo
+
+participant "UserProfileService" as ProfileService
+participant "UserProfileRepo" as ProfileRepo
+
+Service -> Service: Create UserProfile\nwith userId and displayName
+
+Service -> ProfileService: saveProfile(userProfile)
+activate ProfileService
+
+ProfileService -> ProfileRepo: save(userProfile)
+activate ProfileRepo
+ProfileRepo -> DB: Save user_profiles document
+DB --> ProfileRepo: Success
+ProfileRepo --> ProfileService: UserProfile saved
+deactivate ProfileRepo
+
+ProfileService --> Service: UserProfile
+deactivate ProfileService
 
 Service -> Service: Generate verification token\n(UUID)
 

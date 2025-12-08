@@ -98,9 +98,10 @@ else Valid file
     end
 
     User -> Frontend: Assign line items to people
+    Frontend -> Frontend: Fetch friends and user profile\nto populate assignee dropdown
     loop For each line item
-        User -> Frontend: Select assignees\n(e.g., "Alice", "Bob")
-        Frontend -> Frontend: Update lineItem.assignees
+        User -> Frontend: Select assignees\n(e.g., "Me (Alice Smith)", "Bob Johnson")
+        Frontend -> Frontend: Update lineItem.assignees\nusing displayNames
 
         User -> Frontend: Choose split mode\n("equal" or "percentage")
         Frontend -> Frontend: Update lineItem.splitMode
